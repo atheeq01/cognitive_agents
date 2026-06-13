@@ -37,3 +37,5 @@ logs/
 .pytest_cache/
 htmlcov/
 .coverage
+/task.md
+/implementation_plan.md
