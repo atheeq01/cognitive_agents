@@ -16,7 +16,6 @@ class Settings(BaseSettings):
 
     # Pinecone
     PINECONE_API_KEY: str
-    PINECONE_ENVIRONMENT: str = "local"
 
     # Google / Firebase
     FIRESTORE_EMULATOR_HOST: str | None = None
