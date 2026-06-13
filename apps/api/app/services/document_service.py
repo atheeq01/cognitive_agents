@@ -1,0 +1,75 @@
+import uuid
+import magic
+from fastapi import UploadFile, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from app.models.document import Document, DocumentStatus
+from app.models.project import Project
+from app.services.storage_service import storage_service
+from app.services.pubsub_service import pubsub_service
+
+MAX_FILE_SIZE = 50 * 1024 * 1024 # 50 MB
+ALLOWED_MIME_TYPES = ["application/pdf", "text/plain", "audio/mpeg", "image/jpeg", "image/png"]
+
+class DocumentService:
+    @staticmethod
+    async def upload_document(db: AsyncSession, project_id: uuid.UUID, file: UploadFile, user_id: uuid.UUID) -> Document:
+        content = await file.read()
+        
+        size_bytes = len(content)
+        if size_bytes > MAX_FILE_SIZE:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File exceeds 50MB limit")
+            
+        mime_type = magic.from_buffer(content, mime=True)
+        if mime_type not in ALLOWED_MIME_TYPES:
+            raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f"Unsupported file type: {mime_type}")
+            
+        project = await db.execute(select(Project).where(Project.project_id == project_id))
+        project_obj = project.scalars().first()
+        if not project_obj:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+            
+        doc_status = DocumentStatus.PENDING_APPROVAL if project_obj.upload_approval_required else DocumentStatus.APPROVED
+        
+        document_id = uuid.uuid4()
+        gcs_path = await storage_service.upload_document(str(project_id), str(document_id), file.filename, content)
+        
+        document = Document(
+            document_id=document_id,
+            project_id=project_id,
+            uploader_id=user_id,
+            filename=file.filename,
+            mime_type=mime_type,
+            size_bytes=size_bytes,
+            gcs_path=gcs_path,
+            status=doc_status
+        )
+        db.add(document)
+        await db.commit()
+        await db.refresh(document)
+        
+        if doc_status == DocumentStatus.APPROVED:
+            await pubsub_service.publish_document_approved(str(project_id), str(document_id), gcs_path)
+            
+        return document
+
+    @staticmethod
+    async def approve_document(db: AsyncSession, project_id: uuid.UUID, document_id: uuid.UUID) -> Document:
+        result = await db.execute(select(Document).where(
+            Document.project_id == project_id,
+            Document.document_id == document_id
+        ))
+        document = result.scalars().first()
+        if not document:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+            
+        if document.status != DocumentStatus.PENDING_APPROVAL:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Document is not pending approval")
+            
+        document.status = DocumentStatus.APPROVED
+        await db.commit()
+        await db.refresh(document)
+        
+        await pubsub_service.publish_document_approved(str(project_id), str(document_id), document.gcs_path)
+        return document

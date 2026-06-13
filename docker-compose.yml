@@ -13,6 +13,12 @@ services:
       - "8080:8080"
     command: gcloud beta emulators firestore start --host-port=0.0.0.0:8080
 
+  pubsub-emulator:
+    image: google/cloud-sdk:emulators
+    ports:
+      - "8085:8085"
+    command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
+
   # Note: PostgreSQL runs locally, so it is not included here.
   
 volumes:

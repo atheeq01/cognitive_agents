@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     # Google / Firebase
     FIRESTORE_EMULATOR_HOST: str | None = None
     FIREBASE_PROJECT_ID: str | None = None
+    PUBSUB_EMULATOR_HOST: str | None = None
+    GCS_BUCKET_NAME: str = "omnimind-documents"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -30,3 +32,9 @@ class Settings(BaseSettings):
     )
 
 settings = Settings()
+
+import os
+if settings.PUBSUB_EMULATOR_HOST:
+    os.environ["PUBSUB_EMULATOR_HOST"] = settings.PUBSUB_EMULATOR_HOST
+if settings.FIRESTORE_EMULATOR_HOST:
+    os.environ["FIRESTORE_EMULATOR_HOST"] = settings.FIRESTORE_EMULATOR_HOST
