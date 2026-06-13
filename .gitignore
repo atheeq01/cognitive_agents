@@ -1,0 +1,39 @@
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node
+node_modules/
+dist/
+build/
+.pnpm-store/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.env
+
+# MacOS
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
