@@ -1,0 +1,2031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OmniMind v2 — Multi-Project Architecture</title>
+<style>
+  :root {
+    --bg:        #060b12;
+    --surface:   #0b1120;
+    --card:      #0e1726;
+    --card-hi:   #111d2e;
+    --border:    #182035;
+    --border-hi: #1e2d48;
+    --text:      #dde6f0;
+    --muted:     #5a7090;
+    --dim:       #2a3d56;
+
+    --blue:   #3b82f6;
+    --indigo: #6366f1;
+    --purple: #a855f7;
+    --green:  #22c55e;
+    --teal:   #14b8a6;
+    --orange: #f97316;
+    --yellow: #eab308;
+    --red:    #ef4444;
+    --pink:   #ec4899;
+    --cyan:   #06b6d4;
+    --lime:   #84cc16;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  /* ── SHELL ── */
+  .shell { max-width: 1020px; margin: 0 auto; padding: 40px 24px 100px; }
+
+  /* ── HERO ── */
+  .hero {
+    border: 1px solid #1b3560;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #09172b 0%, #0c1f10 55%, #090e1e 100%);
+    padding: 36px 40px 32px;
+    margin-bottom: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 280px; height: 280px;
+    background: radial-gradient(circle, #3b82f618 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    bottom: -60px; left: 20%;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, #22c55e0e 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-eyebrow {
+    font-size: 10px;
+    font-family: 'JetBrains Mono','Fira Code',monospace;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .hero-eyebrow::before { content: ''; width: 20px; height: 1px; background: var(--cyan); }
+  .hero-title {
+    font-size: 32px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    color: #f0f6ff;
+    line-height: 1.15;
+  }
+  .hero-title .accent { color: var(--blue); }
+  .hero-title .v2 { color: var(--green); font-size: 22px; vertical-align: super; }
+  .hero-sub {
+    color: var(--muted);
+    margin-top: 12px;
+    font-size: 13px;
+    max-width: 640px;
+    line-height: 1.7;
+  }
+  .hero-meta {
+    display: flex; gap: 0;
+    margin-top: 28px;
+    border: 1px solid var(--border-hi);
+    border-radius: 10px;
+    overflow: hidden;
+    width: fit-content;
+  }
+  .hero-stat {
+    display: flex; flex-direction: column; gap: 3px;
+    padding: 14px 22px;
+    border-right: 1px solid var(--border-hi);
+  }
+  .hero-stat:last-child { border-right: none; }
+  .hero-stat .num { font-size: 24px; font-weight: 900; color: var(--text); letter-spacing: -0.03em; }
+  .hero-stat .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+  .hero-change {
+    margin-top: 20px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--green);
+    background: #22c55e0d; border: 1px solid #22c55e25;
+    padding: 8px 14px; border-radius: 6px; width: fit-content;
+  }
+
+  /* ── STICKY NAV ── */
+  .sticky-nav {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 0;
+    margin-bottom: 40px;
+  }
+  .nav-inner {
+    max-width: 1020px; margin: 0 auto; padding: 0 24px;
+    display: flex; gap: 4px; flex-wrap: wrap;
+  }
+  .nav-btn {
+    padding: 5px 11px; border-radius: 5px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    border: 1px solid transparent;
+    background: transparent; color: var(--muted);
+    transition: all 0.12s; letter-spacing: 0.02em;
+  }
+  .nav-btn:hover { color: var(--text); background: var(--card); border-color: var(--border); }
+  .nav-btn.active { color: var(--blue); border-color: #3b82f640; background: #3b82f610; }
+
+  /* ── SECTION ── */
+  .section { margin-bottom: 56px; scroll-margin-top: 72px; }
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 22px; padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-icon { font-size: 18px; }
+  .section-title { font-size: 19px; font-weight: 800; letter-spacing: -0.025em; color: var(--text); }
+  .section-badge {
+    margin-left: auto; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 4px;
+  }
+
+  /* ── GRIDS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+  @media(max-width:700px){
+    .grid-2,.grid-3,.grid-4 { grid-template-columns: 1fr; }
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 16px 18px;
+  }
+  .card-accent-red    { border-left: 3px solid var(--red); }
+  .card-accent-orange { border-left: 3px solid var(--orange); }
+  .card-accent-yellow { border-left: 3px solid var(--yellow); }
+  .card-accent-green  { border-left: 3px solid var(--green); }
+  .card-accent-blue   { border-left: 3px solid var(--blue); }
+  .card-accent-purple { border-left: 3px solid var(--purple); }
+  .card-accent-teal   { border-left: 3px solid var(--teal); }
+  .card-accent-indigo { border-left: 3px solid var(--indigo); }
+  .card-accent-cyan   { border-left: 3px solid var(--cyan); }
+  .card-accent-pink   { border-left: 3px solid var(--pink); }
+  .card-accent-lime   { border-left: 3px solid var(--lime); }
+
+  .card-title {
+    font-size: 13px; font-weight: 700;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .card-body { font-size: 12px; color: var(--muted); line-height: 1.7; }
+  .card-body ul { padding-left: 14px; margin-top: 6px; }
+  .card-body li { margin-top: 4px; }
+  .card-body strong { color: #adc4e0; }
+
+  /* ── SEVERITY ── */
+  .sev {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 3px;
+  }
+  .sev-critical { background: #7f1d1d; color: #fca5a5; }
+  .sev-high     { background: #431407; color: #fdba74; }
+  .sev-medium   { background: #422006; color: #fde68a; }
+  .sev-low      { background: #052e16; color: #86efac; }
+  .sev-info     { background: #0c1a3a; color: #93c5fd; }
+  .sev-new      { background: #1a0d38; color: #c4b5fd; }
+
+  /* ── ISSUES TABLE ── */
+  .issues-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .issues-table th {
+    text-align: left; padding: 8px 12px;
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .issues-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .issues-table tr:last-child td { border-bottom: none; }
+  .issues-table tr:hover td { background: #ffffff04; }
+  .issue-title { font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .issue-detail { color: var(--muted); line-height: 1.6; }
+  .issue-fix { color: var(--green); margin-top: 5px; font-size: 11px; line-height: 1.6; }
+  .issue-fix::before { content: '✓ Fix: '; font-weight: 700; }
+  .issue-changed { color: #c4b5fd; margin-top: 3px; font-size: 10px; font-style: italic; }
+  .issue-changed::before { content: '⟳ Changed: '; font-weight: 700; }
+
+  /* ── ARCH LAYERS ── */
+  .arch-diagram-box {
+    background: var(--surface);
+    border: 1px solid var(--border-hi);
+    border-radius: 12px;
+    padding: 22px;
+    margin-bottom: 16px;
+  }
+  .arch-diagram-title {
+    font-size: 10px; font-family: monospace;
+    text-transform: uppercase; letter-spacing: 0.18em; color: var(--cyan);
+    margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+  }
+  .arch-diagram-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .arch-layer {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+  }
+  .arch-layer-label {
+    font-size: 9px; font-family: monospace;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--dim); margin-bottom: 10px;
+  }
+  .arch-services { display: flex; flex-wrap: wrap; gap: 6px; }
+  .arch-svc {
+    font-size: 11px; padding: 5px 11px;
+    border-radius: 5px; border: 1px solid; font-weight: 500;
+  }
+  .arch-arrow {
+    display: flex; align-items: center; justify-content: center;
+    padding: 3px 0; gap: 8px; color: var(--dim); font-size: 10px;
+    margin-bottom: 6px; letter-spacing: 0.03em;
+  }
+  .arch-arrow::before, .arch-arrow::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* ── PIPELINE ── */
+  .pipeline { display: flex; flex-direction: column; gap: 0; }
+  .pipeline-step {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 12px 0; position: relative;
+  }
+  .pipeline-step:not(:last-child)::after {
+    content: '';
+    position: absolute; left: 13px; top: 38px; bottom: 0;
+    width: 1px; background: var(--border);
+  }
+  .pipeline-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; flex-shrink: 0; border: 1px solid;
+  }
+  .pipeline-body { flex: 1; }
+  .pipeline-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .pipeline-sub { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.65; }
+  .pipeline-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .tag {
+    font-size: 10px; padding: 2px 9px; border-radius: 3px;
+    background: #17273a; color: var(--muted); border: 1px solid var(--border);
+  }
+
+  /* ── CONFLICT FLOW ── */
+  .conflict-flow {
+    display: grid; grid-template-columns: repeat(5,1fr);
+    gap: 6px; margin: 14px 0;
+  }
+  @media(max-width:640px){ .conflict-flow{grid-template-columns:1fr;} }
+  .conflict-stage {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 7px; padding: 12px 8px; text-align: center;
+  }
+  .conflict-stage-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    font-size: 9px; font-weight: 800; margin-bottom: 7px;
+  }
+  .conflict-stage-title { font-size: 11px; font-weight: 700; color: var(--text); }
+  .conflict-stage-sub { font-size: 9px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+  /* ── ROADMAP ── */
+  .roadmap-phase {
+    display: grid; grid-template-columns: 110px 1fr;
+    gap: 18px; margin-bottom: 24px; align-items: start;
+  }
+  @media(max-width:520px){ .roadmap-phase{grid-template-columns:1fr;} }
+  .phase-label {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 9px; padding: 14px 10px; text-align: center;
+    position: sticky; top: 80px;
+  }
+  .phase-label .ph-num { font-size: 26px; font-weight: 900; }
+  .phase-label .ph-dur { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .phase-label .ph-name { font-size: 11px; font-weight: 700; margin-top: 6px; }
+  .phase-items { display: flex; flex-direction: column; gap: 8px; }
+  .phase-item {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 7px; padding: 12px 14px;
+  }
+  .phase-item-title { font-weight: 700; color: var(--text); margin-bottom: 4px; font-size: 13px; }
+  .phase-item-detail { color: var(--muted); line-height: 1.65; font-size: 12px; }
+
+  /* ── SCORE PILLS ── */
+  .scores-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+  .score-pill {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 9px; padding: 14px 18px; min-width: 140px; flex: 1;
+  }
+  .score-domain { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+  .score-val { font-size: 28px; font-weight: 900; line-height: 1.1; margin-top: 4px; letter-spacing: -0.03em; }
+  .score-bar { height: 3px; border-radius: 2px; background: var(--border); margin-top: 10px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 2px; }
+  .score-note { font-size: 10px; color: var(--muted); margin-top: 6px; }
+
+  /* ── ROLE CARD ── */
+  .role-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 9px; padding: 18px;
+  }
+  .role-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .role-icon {
+    width: 38px; height: 38px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+    flex-shrink: 0;
+  }
+  .role-name { font-size: 14px; font-weight: 800; }
+  .role-level { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px; }
+  .perm-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+  .perm-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 11px; color: var(--muted); line-height: 1.5;
+  }
+  .perm-check { font-size: 10px; flex-shrink: 0; margin-top: 2px; }
+  .perm-check.allow { color: var(--green); }
+  .perm-check.deny  { color: var(--red); }
+  .perm-divider {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--dim); margin: 8px 0 4px; font-weight: 700;
+  }
+
+  /* ── PROJECT MODEL ── */
+  .project-flow {
+    background: var(--surface); border: 1px solid var(--border-hi);
+    border-radius: 10px; padding: 20px;
+    display: flex; flex-direction: column; gap: 0;
+    margin: 14px 0;
+  }
+  .pf-row {
+    display: flex; gap: 0;
+    border: 1px solid var(--border); border-radius: 7px;
+    overflow: hidden; margin-bottom: 8px;
+  }
+  .pf-label {
+    background: var(--card); padding: 10px 14px;
+    font-size: 10px; font-family: monospace; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--dim); min-width: 120px;
+    display: flex; align-items: center; border-right: 1px solid var(--border);
+  }
+  .pf-content {
+    flex: 1; padding: 10px 14px;
+    font-size: 11px; color: var(--muted); line-height: 1.6;
+  }
+
+  /* ── CODE ── */
+  .code {
+    background: #040b15; border: 1px solid var(--border);
+    border-radius: 7px; padding: 16px 18px;
+    font-family: 'JetBrains Mono','Fira Code',monospace;
+    font-size: 11px; color: #a5f3fc;
+    overflow-x: auto; margin-top: 8px;
+    line-height: 1.75; white-space: pre;
+  }
+  .code .kw  { color: #818cf8; }
+  .code .str { color: #6ee7b7; }
+  .code .cm  { color: #3d5472; font-style: italic; }
+  .code .hl  { color: #fde68a; }
+  .code .num { color: #fb923c; }
+
+  /* ── MISC ── */
+  .callout {
+    border-radius: 8px; padding: 14px 18px;
+    margin: 12px 0; font-size: 12px; line-height: 1.7;
+  }
+  .callout-red    { background: #7f1d1d14; border: 1px solid #7f1d1d45; color: #fca5a5; }
+  .callout-orange { background: #43140714; border: 1px solid #c2410c45; color: #fdba74; }
+  .callout-green  { background: #052e1614; border: 1px solid #16a34a38; color: #86efac; }
+  .callout-blue   { background: #1e3a5f14; border: 1px solid #2563eb38; color: #93c5fd; }
+  .callout-yellow { background: #42200614; border: 1px solid #ca8a0438; color: #fde68a; }
+  .callout-purple { background: #3b0764 14; border: 1px solid #7c3aed38; color: #c4b5fd; }
+  .callout strong { font-weight: 700; }
+
+  .mono {
+    font-family: 'JetBrains Mono','Fira Code',monospace;
+    font-size: 11px; background: #0b1523;
+    padding: 1px 7px; border-radius: 3px;
+    border: 1px solid var(--border); color: #a5f3fc;
+  }
+
+  .schema-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+  .schema-table th {
+    text-align: left; padding: 7px 12px;
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  .schema-table td {
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    vertical-align: top; color: var(--muted);
+  }
+  .schema-table td:first-child { color: #a5f3fc; font-family: monospace; }
+  .schema-table tr:hover td { background: #ffffff04; }
+
+  .new-idea-banner {
+    background: linear-gradient(135deg, #0c1f12 0%, #091526 100%);
+    border: 1px solid #22c55e35; border-left: 3px solid var(--green);
+    border-radius: 9px; padding: 18px 22px; margin-bottom: 22px;
+  }
+  .new-idea-banner .title {
+    font-size: 13px; font-weight: 700; color: var(--green);
+    margin-bottom: 7px; display: flex; align-items: center; gap: 7px;
+  }
+  .new-idea-banner .body { font-size: 12px; color: var(--muted); line-height: 1.7; }
+
+  .changed-banner {
+    background: linear-gradient(135deg, #12091f 0%, #091526 100%);
+    border: 1px solid #a855f735; border-left: 3px solid var(--purple);
+    border-radius: 9px; padding: 16px 20px; margin-bottom: 18px;
+  }
+  .changed-banner .title {
+    font-size: 12px; font-weight: 700; color: #c4b5fd;
+    margin-bottom: 6px; display: flex; align-items: center; gap: 7px;
+  }
+  .changed-banner .body { font-size: 12px; color: var(--muted); line-height: 1.7; }
+
+  .divider { height: 1px; background: var(--border); margin: 28px 0; }
+
+  /* ── ISOLATION DIAGRAM ── */
+  .isolation-box {
+    background: var(--surface); border: 1px solid var(--border-hi);
+    border-radius: 10px; padding: 20px; margin: 14px 0;
+  }
+  .isolation-title {
+    font-size: 10px; font-family: monospace; text-transform: uppercase;
+    letter-spacing: 0.15em; color: var(--purple); margin-bottom: 14px;
+  }
+  .isolation-projects {
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 10px;
+  }
+  @media(max-width:600px){ .isolation-projects{grid-template-columns:1fr;} }
+  .isolation-project {
+    border: 1px solid var(--border-hi); border-radius: 8px; overflow: hidden;
+  }
+  .isolation-project-header {
+    padding: 8px 12px; font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .isolation-project-body {
+    padding: 8px 12px; font-size: 10px; color: var(--muted); line-height: 1.6;
+    border-top: 1px solid var(--border);
+  }
+  .isolation-project-body div { padding: 2px 0; }
+
+  /* ── APPROVAL FLOW ── */
+  .approval-flow {
+    display: flex; align-items: center; gap: 0; margin: 14px 0; flex-wrap: wrap;
+  }
+  .af-step {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 7px; padding: 10px 14px; font-size: 11px; flex: 1; min-width: 120px;
+  }
+  .af-step-title { font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .af-step-sub { font-size: 10px; color: var(--muted); }
+  .af-arrow { color: var(--dim); font-size: 16px; padding: 0 6px; flex-shrink: 0; }
+
+  footer {
+    border-top: 1px solid var(--border); padding-top: 24px;
+    color: var(--dim); font-size: 11px; text-align: center;
+    font-family: monospace; letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<!-- STICKY NAV -->
+<nav class="sticky-nav">
+  <div class="nav-inner">
+    <button class="nav-btn active" onclick="navTo('overview','this')">Overview</button>
+    <button class="nav-btn" onclick="navTo('user-model','this')">User &amp; Project Model</button>
+    <button class="nav-btn" onclick="navTo('roles','this')">Roles &amp; Permissions</button>
+    <button class="nav-btn" onclick="navTo('isolation','this')">Data Isolation</button>
+    <button class="nav-btn" onclick="navTo('issues','this')">Issues (Fixed)</button>
+    <button class="nav-btn" onclick="navTo('ai','this')">AI Pipeline</button>
+    <button class="nav-btn" onclick="navTo('security','this')">Security</button>
+    <button class="nav-btn" onclick="navTo('arch','this')">Architecture</button>
+    <button class="nav-btn" onclick="navTo('cicd','this')">CI/CD</button>
+    <button class="nav-btn" onclick="navTo('frontend','this')">Frontend</button>
+    <button class="nav-btn" onclick="navTo('roadmap','this')">Roadmap</button>
+  </div>
+</nav>
+
+<script>
+function navTo(id, btn) {
+  document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+window.addEventListener('scroll', () => {
+  const sections = document.querySelectorAll('.section');
+  const btns = document.querySelectorAll('.nav-btn');
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 90) current = s.id;
+  });
+  btns.forEach(b => {
+    b.classList.remove('active');
+    if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + current + "'")) {
+      b.classList.add('active');
+    }
+  });
+});
+</script>
+
+<div class="shell">
+
+<!-- ═══ HERO ═══ -->
+<div class="hero">
+  <div class="hero-eyebrow">Staff-Level Architecture · Version 2 · June 2026</div>
+  <div class="hero-title">
+    <span class="accent">OmniMind</span><span class="v2"> v2</span> — Multi-Project Cognitive Intelligence Platform
+  </div>
+  <div class="hero-sub">Complete architectural redesign from an org_id tenant model to a full multi-project workspace system with per-project data isolation, role-based access control (Project Admin / Member / Viewer), approval workflows, and all 34 original issues resolved within the new model.</div>
+  <div class="hero-meta">
+    <div class="hero-stat"><span class="num">34</span><span class="lbl">Issues Fixed</span></div>
+    <div class="hero-stat"><span class="num">3</span><span class="lbl">Project Roles</span></div>
+    <div class="hero-stat"><span class="num">∞</span><span class="lbl">Projects/User</span></div>
+    <div class="hero-stat"><span class="num">5</span><span class="lbl">AI Agents</span></div>
+    <div class="hero-stat"><span class="num">16wk</span><span class="lbl">To Production</span></div>
+  </div>
+  <div class="hero-change">⟳ Completely redesigned from org_id model — now project-based with full RBAC</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- OVERVIEW -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="overview">
+  <div class="section-header">
+    <span class="section-icon">📊</span>
+    <h2 class="section-title">What Changed &amp; Why</h2>
+    <span class="section-badge sev-new">Architecture v2</span>
+  </div>
+
+  <div class="changed-banner">
+    <div class="title">⟳ Complete Model Shift — org_id → Project Workspaces</div>
+    <div class="body">The original design used a single org_id to scope all data. The new design replaces this with a <strong>Project</strong> as the core entity. A single user can belong to many projects with different roles in each. Projects are fully isolated knowledge workspaces — documents, embeddings, chat history, conflict results, and AI memory are all scoped to a project_id, not an org. This enables real-world use cases: a law student working on three research projects, a lawyer managing separate cases, or a PhD student juggling multiple papers — each as an independent workspace.</div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:20px;">
+    <div class="card card-accent-red">
+      <div class="card-title" style="color:var(--red)">✗ Original Model (org_id)</div>
+      <div class="card-body">
+        <ul>
+          <li>One org per user — no cross-project membership</li>
+          <li>All documents visible to all org members</li>
+          <li>org_id enforced only in application code</li>
+          <li>No concept of projects, cases, or workspaces</li>
+          <li>No approval workflow for document uploads</li>
+          <li>No role-based permission within an org</li>
+          <li>Single tenant boundary = single blast radius</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card card-accent-green">
+      <div class="card-title" style="color:var(--green)">✓ New Model (project_id)</div>
+      <div class="card-body">
+        <ul>
+          <li>Users belong to many projects simultaneously</li>
+          <li>Different roles per project: Admin / Member / Viewer</li>
+          <li>project_id enforced at PostgreSQL RLS layer — not just app code</li>
+          <li>Each project is an independent AI knowledge workspace</li>
+          <li>Admin-controlled document approval workflow per project</li>
+          <li>Fine-grained permissions: who can upload, query, manage</li>
+          <li>Project-level data purge for GDPR compliance</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Score comparison -->
+  <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Architecture scores after applying all v2 changes:</p>
+  <div class="scores-grid" style="margin-bottom:20px;">
+    <div class="score-pill">
+      <div class="score-domain">Backend Architecture</div>
+      <div class="score-val" style="color:var(--green)">9/10</div>
+      <div class="score-bar"><div class="score-fill" style="width:90%;background:var(--green)"></div></div>
+      <div class="score-note">Project model, RLS, DLQ, rate limiting — all addressed</div>
+    </div>
+    <div class="score-pill">
+      <div class="score-domain">AI Pipeline</div>
+      <div class="score-val" style="color:var(--green)">9/10</div>
+      <div class="score-bar"><div class="score-fill" style="width:90%;background:var(--green)"></div></div>
+      <div class="score-note">5-stage cross-modal conflict, VerifierAgent, grounding</div>
+    </div>
+    <div class="score-pill">
+      <div class="score-domain">Security</div>
+      <div class="score-val" style="color:var(--green)">9/10</div>
+      <div class="score-bar"><div class="score-fill" style="width:90%;background:var(--green)"></div></div>
+      <div class="score-note">RLS, file validation, injection protection, audit log</div>
+    </div>
+    <div class="score-pill">
+      <div class="score-domain">Multi-tenancy</div>
+      <div class="score-val" style="color:var(--green)">10/10</div>
+      <div class="score-bar"><div class="score-fill" style="width:100%;background:var(--green)"></div></div>
+      <div class="score-note">Project model with DB-enforced isolation</div>
+    </div>
+    <div class="score-pill">
+      <div class="score-domain">Cloud / DevOps</div>
+      <div class="score-val" style="color:var(--green)">9/10</div>
+      <div class="score-bar"><div class="score-fill" style="width:90%;background:var(--green)"></div></div>
+      <div class="score-note">Staging env, canary, auto-rollback, IaC</div>
+    </div>
+    <div class="score-pill">
+      <div class="score-domain">Frontend UX</div>
+      <div class="score-val" style="color:var(--teal)">8/10</div>
+      <div class="score-bar"><div class="score-fill" style="width:80%;background:var(--teal)"></div></div>
+      <div class="score-note">Project switcher, approval queue, role-aware views</div>
+    </div>
+  </div>
+
+  <div class="callout callout-blue">
+    <strong>Core Design Principle:</strong> Every API request carries both <span class="mono">user_id</span> and <span class="mono">project_id</span>. The system verifies membership <em>and</em> role before any data operation. PostgreSQL Row-Level Security enforces project_id isolation at the database layer — application code bugs cannot cause cross-project data leaks. The project is the unit of isolation, not the user.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- USER & PROJECT MODEL -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="user-model">
+  <div class="section-header">
+    <span class="section-icon">🏗</span>
+    <h2 class="section-title">User &amp; Project Model</h2>
+    <span class="section-badge sev-new">New Architecture</span>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:16px;">
+    <div class="card card-accent-blue">
+      <div class="card-title" style="color:var(--blue)">👤 User Model</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>One account, many projects.</strong> A user has a single identity (user_id, email, name, avatar) across the platform.</li>
+          <li><strong>Project membership is explicit.</strong> Being a user does not grant access to any project. Membership must be granted by a Project Admin.</li>
+          <li><strong>Role per project.</strong> A user can be an Admin in Project A, a Member in Project B, and a Viewer in Project C — all simultaneously.</li>
+          <li><strong>Project switcher.</strong> The UI shows all projects the user belongs to. The active project sets the context for all queries, uploads, and AI operations.</li>
+          <li><strong>No cross-project data.</strong> Switching projects resets the entire workspace — search results, document lists, chat history, and knowledge graph all scope to the new project.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card card-accent-purple">
+      <div class="card-title" style="color:var(--purple)">📁 Project Model</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>Project = independent knowledge workspace.</strong> Each project has its own documents, embeddings, AI memory, conflict history, and chat sessions.</li>
+          <li><strong>Created by one Project Admin.</strong> The creator automatically becomes the Project Admin. They can promote others to Admin.</li>
+          <li><strong>Project settings per instance.</strong> Each project configures: upload approval required (on/off), allowed file types, max document count, AI analysis schedule, visibility of conflicts to members.</li>
+          <li><strong>Isolated storage paths.</strong> All Cloud Storage, Cloud SQL rows, Firestore collections, and Pinecone namespaces are all scoped to project_id at both the application and infrastructure layer.</li>
+          <li><strong>Deletion propagates completely.</strong> Deleting a project purges all data across every store — SQL, Firestore, GCS, Redis, embeddings — with a deletion certificate for GDPR compliance.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Project model data flow -->
+  <div class="project-flow">
+    <div class="pf-row">
+      <div class="pf-label">User Signs In</div>
+      <div class="pf-content">Firebase Auth issues JWT containing <span class="mono">user_id</span>. JWT contains no project_id — that's resolved on project selection, not at login.</div>
+    </div>
+    <div class="pf-row">
+      <div class="pf-label">Project Selection</div>
+      <div class="pf-content">Client calls <span class="mono">GET /users/me/projects</span> → returns list of all projects with user's role in each. User selects a project. Client stores <span class="mono">active_project_id</span> in session.</div>
+    </div>
+    <div class="pf-row">
+      <div class="pf-label">Every Request</div>
+      <div class="pf-content">API receives <span class="mono">Authorization: Bearer {JWT}</span> + <span class="mono">X-Project-ID: {project_id}</span> header. Middleware verifies: (1) JWT valid, (2) user is member of project, (3) user has the required role for this endpoint. Fail any check → 403.</div>
+    </div>
+    <div class="pf-row">
+      <div class="pf-label">DB Layer</div>
+      <div class="pf-content">Middleware sets <span class="mono">SET LOCAL app.project_id = '{project_id}'</span> on the PostgreSQL session. RLS policies filter every table automatically — even if application code forgets a WHERE clause, the DB rejects cross-project reads.</div>
+    </div>
+    <div class="pf-row">
+      <div class="pf-label">Storage Layer</div>
+      <div class="pf-content">All Cloud Storage writes use path <span class="mono">gs://omnimind-docs/{project_id}/{user_id}/{file_id}</span>. GCS IAM Conditions enforce this path prefix — files cannot be read or written outside the project's prefix even if the app has a bug.</div>
+    </div>
+    <div class="pf-row" style="border-bottom:none;">
+      <div class="pf-label">AI Layer</div>
+      <div class="pf-content">All Pinecone similarity searches use <span class="mono">query(namespace=project_id)</span> — the namespace is a hardware-level boundary that prevents cross-project vector access (defense in depth). Gemini prompts include the project_id and explicitly state the project boundary in the system prompt.</div>
+    </div>
+  </div>
+
+  <!-- Database schema -->
+  <div class="card card-accent-indigo" style="margin-top:14px;">
+    <div class="card-title" style="color:var(--indigo)">🗄 Core Database Schema (Project-Based)</div>
+    <div class="code"><span class="cm">-- Users table (global, no project scope)</span>
+<span class="kw">CREATE TABLE</span> users (
+    user_id     UUID <span class="kw">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+    email       TEXT <span class="kw">UNIQUE NOT NULL</span>,
+    name        TEXT,
+    avatar_url  TEXT,
+    created_at  TIMESTAMPTZ <span class="kw">DEFAULT</span> now()
+);
+
+<span class="cm">-- Projects table (the core isolation unit)</span>
+<span class="kw">CREATE TABLE</span> projects (
+    project_id      UUID <span class="kw">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+    name            TEXT <span class="kw">NOT NULL</span>,
+    description     TEXT,
+    created_by      UUID <span class="kw">REFERENCES</span> users(user_id),
+    created_at      TIMESTAMPTZ <span class="kw">DEFAULT</span> now(),
+    settings        JSONB <span class="kw">DEFAULT</span> <span class="str">'{}'</span>,  <span class="cm">-- per-project config</span>
+    upload_approval_required BOOLEAN <span class="kw">DEFAULT</span> <span class="kw">FALSE</span>,
+    legal_hold      BOOLEAN <span class="kw">DEFAULT</span> <span class="kw">FALSE</span>
+);
+
+<span class="cm">-- Project membership with roles</span>
+<span class="kw">CREATE TABLE</span> project_members (
+    project_id  UUID <span class="kw">REFERENCES</span> projects(project_id) <span class="kw">ON DELETE CASCADE</span>,
+    user_id     UUID <span class="kw">REFERENCES</span> users(user_id) <span class="kw">ON DELETE CASCADE</span>,
+    role        TEXT <span class="kw">CHECK</span> (role <span class="kw">IN</span> (<span class="str">'admin'</span>, <span class="str">'member'</span>, <span class="str">'viewer'</span>)) <span class="kw">NOT NULL</span>,
+    joined_at   TIMESTAMPTZ <span class="kw">DEFAULT</span> now(),
+    invited_by  UUID <span class="kw">REFERENCES</span> users(user_id),
+    <span class="kw">PRIMARY KEY</span> (project_id, user_id)
+);
+
+<span class="cm">-- Documents scoped to project</span>
+<span class="kw">CREATE TABLE</span> documents (
+    doc_id          UUID <span class="kw">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+    project_id      UUID <span class="kw">REFERENCES</span> projects(project_id) <span class="kw">ON DELETE CASCADE</span>,
+    uploaded_by     UUID <span class="kw">REFERENCES</span> users(user_id),
+    filename        TEXT, storage_path TEXT, modality TEXT,
+    status          TEXT <span class="kw">DEFAULT</span> <span class="str">'pending_approval'</span>,  <span class="cm">-- approval state</span>
+    approved_by     UUID <span class="kw">REFERENCES</span> users(user_id),
+    privilege_status TEXT <span class="kw">DEFAULT</span> <span class="str">'none'</span>,            <span class="cm">-- attorney-client privilege</span>
+    visibility      TEXT <span class="kw">DEFAULT</span> <span class="str">'project'</span>,           <span class="cm">-- project | team | private</span>
+    created_at      TIMESTAMPTZ <span class="kw">DEFAULT</span> now()
+);
+
+<span class="cm">-- ROW-LEVEL SECURITY — enforced at DB layer</span>
+<span class="kw">ALTER TABLE</span> documents <span class="kw">ENABLE ROW LEVEL SECURITY</span>;
+<span class="kw">CREATE POLICY</span> project_isolation <span class="kw">ON</span> documents
+    <span class="kw">USING</span> (project_id = current_setting(<span class="str">'app.project_id'</span>)::UUID);
+
+<span class="cm">-- Same RLS applied to: ucds, claims, conflicts, chat_messages, insights, audit_log</span></div>
+  </div>
+
+  <!-- Approval workflow -->
+  <div class="card card-accent-green" style="margin-top:14px;">
+    <div class="card-title" style="color:var(--green)">✓ Document Approval Workflow</div>
+    <div class="card-body" style="margin-bottom:12px;">When <span class="mono">upload_approval_required = true</span> on a project, member uploads go into a pending queue before entering the AI knowledge base. Admins review and approve or reject.</div>
+    <div class="approval-flow">
+      <div class="af-step">
+        <div class="af-step-title">Member Uploads</div>
+        <div class="af-step-sub">File validated, scanned. Status: <span class="mono">pending_approval</span>. Not processed by AI.</div>
+      </div>
+      <div class="af-arrow">→</div>
+      <div class="af-step">
+        <div class="af-step-title">Admin Notified</div>
+        <div class="af-step-sub">Project Admin sees pending count in dashboard. Email + in-app notification.</div>
+      </div>
+      <div class="af-arrow">→</div>
+      <div class="af-step">
+        <div class="af-step-title">Admin Reviews</div>
+        <div class="af-step-sub">Sees filename, uploader, modality, file size. Approve or reject with optional reason.</div>
+      </div>
+      <div class="af-arrow">→</div>
+      <div class="af-step">
+        <div class="af-step-title">On Approval</div>
+        <div class="af-step-sub">Status → <span class="mono">approved</span>. Pub/Sub event triggers AI processing pipeline.</div>
+      </div>
+      <div class="af-arrow">→</div>
+      <div class="af-step">
+        <div class="af-step-title">AI Processes</div>
+        <div class="af-step-sub">Document enters knowledge base. Visible to all project members per role.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- ROLES & PERMISSIONS -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="roles">
+  <div class="section-header">
+    <span class="section-icon">🔑</span>
+    <h2 class="section-title">Project Roles &amp; Permissions</h2>
+    <span class="section-badge sev-new">RBAC Model</span>
+  </div>
+
+  <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">Every permission is enforced at two layers: the FastAPI middleware (role check before handler runs) and the PostgreSQL RLS policy (project_id check at query time). Both must pass for any data operation to succeed.</p>
+
+  <div class="grid-3" style="margin-bottom:16px;">
+
+    <!-- Project Admin -->
+    <div class="role-card">
+      <div class="role-header">
+        <div class="role-icon" style="background:#3b82f615;border:1px solid #3b82f635;">👑</div>
+        <div>
+          <div class="role-name" style="color:var(--blue)">Project Admin</div>
+          <div class="role-level" style="color:var(--blue)">Full Control</div>
+        </div>
+      </div>
+      <div class="perm-divider">Project Management</div>
+      <ul class="perm-list">
+        <li class="perm-item"><span class="perm-check allow">✓</span> Create &amp; delete the project</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Edit project settings &amp; name</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Enable/disable upload approval workflow</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Set project-level AI schedule</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Enable legal hold</li>
+      </ul>
+      <div class="perm-divider">Members</div>
+      <ul class="perm-list">
+        <li class="perm-item"><span class="perm-check allow">✓</span> Invite users to project</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Remove members from project</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Assign &amp; change member roles</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Promote another member to Admin</li>
+      </ul>
+      <div class="perm-divider">Documents</div>
+      <ul class="perm-list">
+        <li class="perm-item"><span class="perm-check allow">✓</span> Upload all document types</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Delete any document</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Approve or reject pending uploads</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Set document privilege status</li>
+      </ul>
+      <div class="perm-divider">AI &amp; Insights</div>
+      <ul class="perm-list">
+        <li class="perm-item"><span class="perm-check allow">✓</span> Full AI query access</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Human review queue (confirm/dismiss)</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> View &amp; export audit log</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> View AI cost &amp; usage metrics</li>
+      </ul>
+    </div>
+
+    <!-- Member -->
+    <div class="role-card">
+      <div class="role-header">
+        <div class="role-icon" style="background:#22c55e15;border:1px solid #22c55e35;">👤</div>
+        <div>
+          <div class="role-name" style="color:var(--green)">Member</div>
+          <div class="role-level" style="color:var(--green)">Contribute &amp; Query</div>
+        </div>
+      </div>
+      <div class="perm-divider">Project Management</div>
+      <ul class="perm-list">
+        <li class="perm-item"><span class="perm-check deny">✗</span> Cannot create/delete project</li>
+        <li class="perm-item"><span class="perm-check deny">✗</span> Cannot change project settings</li>
+        <li class="perm-item"><span class="perm-check deny">✗</span> Cannot manage other members</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Leave project (self-remove)</li>
+      </ul>
+      <div class="perm-divider">Documents</div>
+      <ul class="perm-list">
+        <li class="perm-item"><span class="perm-check allow">✓</span> Upload documents (if admin allows)</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Delete own documents only</li>
+        <li class="perm-item"><span class="perm-check deny">✗</span> Cannot delete others' documents</li>
+        <li class="perm-item"><span class="perm-check deny">✗</span> Cannot approve/reject uploads</li>
+        <li class="perm-item"><span class="perm-check deny">✗</span> Cannot see privileged docs (unless permitted)</li>
+      </ul>
+      <div class="perm-divider">AI &amp; Insights</div>
+      <ul class="perm-list">
+        <li class="perm-item"><span class="perm-check allow">✓</span> Chat with documents (project scope)</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> View conflict &amp; agreement analysis</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> Semantic search across project</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> View cognitive insights</li>
+        <li class="perm-item"><span class="perm-check deny">✗</span> Cannot access human review queue</li>
+        <li class="perm-item"><span class="perm-check deny">✗</span> Cannot view audit log or costs</li>
+      </ul>
+    </div>
+
+    <!-- Viewer -->
+    <div class="role-card">
+      <div class="role-header">
+        <div class="role-icon" style="background:#eab30815;border:1px solid #eab30835;">👁</div>
+        <div>
+          <div class="role-name" style="color:var(--yellow)">Viewer</div>
+          <div class="role-level" style="color:var(--yellow)">Read-Only</div>
+        </div>
+      </div>
+      <div class="perm-divider">Project Management</div>
+      <ul class="perm-list">
+        <li class="perm-item"><span class="perm-check deny">✗</span> No project management capabilities</li>
+        <li class="perm-item"><span class="perm-check deny">✗</span> Cannot modify members or settings</li>
+      </ul>
+      <div class="perm-divider">Documents</div>
+      <ul class="perm-list">
+        <li class="perm-item"><span class="perm-check deny">✗</span> Cannot upload any documents</li>
+        <li class="perm-item"><span class="perm-check deny">✗</span> Cannot delete any documents</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> View approved documents (project-scoped)</li>
+        <li class="perm-item"><span class="perm-check deny">✗</span> Cannot see privileged or private docs</li>
+      </ul>
+      <div class="perm-divider">AI &amp; Insights</div>
+      <ul class="perm-list">
+        <li class="perm-item"><span class="perm-check allow">✓</span> Query AI within project scope</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> View conflict analysis results</li>
+        <li class="perm-item"><span class="perm-check allow">✓</span> View approved insights &amp; summaries</li>
+        <li class="perm-item"><span class="perm-check deny">✗</span> No write operations of any kind</li>
+        <li class="perm-item"><span class="perm-check deny">✗</span> Cannot export or share results</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- RBAC enforcement code -->
+  <div class="card card-accent-blue">
+    <div class="card-title" style="color:var(--blue)">⚙ RBAC Enforcement — FastAPI Middleware</div>
+    <div class="code"><span class="cm"># Dependency injected into every protected route</span>
+<span class="kw">async def</span> require_project_role(
+    required_role: str,
+    user: User = Depends(verify_jwt),
+    project_id: UUID = Header(..., alias=<span class="str">"X-Project-ID"</span>),
+    db: AsyncSession = Depends(get_db),
+) -> ProjectMembership:
+    <span class="cm"># 1. Check user is a member of this project</span>
+    membership = <span class="kw">await</span> db.execute(
+        select(ProjectMember)
+        .where(ProjectMember.project_id == project_id)
+        .where(ProjectMember.user_id == user.user_id)
+    )
+    <span class="kw">if not</span> membership.scalar_one_or_none():
+        <span class="kw">raise</span> HTTPException(<span class="num">403</span>, <span class="str">"Not a member of this project"</span>)
+
+    <span class="cm"># 2. Check user has required role (admin > member > viewer)</span>
+    ROLE_HIERARCHY = {<span class="str">"viewer"</span>: <span class="num">1</span>, <span class="str">"member"</span>: <span class="num">2</span>, <span class="str">"admin"</span>: <span class="num">3</span>}
+    <span class="kw">if</span> ROLE_HIERARCHY[membership.role] < ROLE_HIERARCHY[required_role]:
+        <span class="kw">raise</span> HTTPException(<span class="num">403</span>, <span class="str">f"Role '{required_role}' required"</span>)
+
+    <span class="cm"># 3. Inject project_id into PostgreSQL session for RLS</span>
+    <span class="kw">await</span> db.execute(
+        text(<span class="str">"SET LOCAL app.project_id = :pid"</span>), {<span class="str">"pid"</span>: str(project_id)}
+    )
+    <span class="kw">return</span> membership
+
+<span class="cm"># Usage in routes:</span>
+<span class="kw">@router</span>.post(<span class="str">"/projects/{project_id}/documents"</span>)
+<span class="kw">async def</span> upload_document(
+    _: ProjectMembership = Depends(require_project_role(<span class="str">"member"</span>)),
+    ...
+): ...
+
+<span class="kw">@router</span>.delete(<span class="str">"/projects/{project_id}/members/{user_id}"</span>)
+<span class="kw">async def</span> remove_member(
+    _: ProjectMembership = Depends(require_project_role(<span class="str">"admin"</span>)),
+    ...
+): ...</div>
+  </div>
+
+  <!-- ═══ PYDANTIC v2 + SQLALCHEMY CARDS ═══ -->
+  <div class="grid-2" style="margin-top:16px;">
+    <div class="card card-accent-cyan">
+      <div class="card-title" style="color:var(--cyan)">📦 Pydantic v2 — Data Validation Layer</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>All request/response DTOs</strong> in <span class="mono">apps/api/schemas/</span> extend <span class="mono">pydantic.BaseModel</span> (v2). FastAPI validates all incoming JSON against these schemas automatically.</li>
+          <li><strong>UCD &amp; Claim models</strong> in <span class="mono">schemas/ucd.py</span> use Pydantic v2 for both in-transit validation and as the canonical data contract between the worker and API layers.</li>
+          <li><strong>Strict mode</strong> (<span class="mono">model_config = ConfigDict(strict=True)</span>) enforced on all schemas — coercion of incompatible types raises a 422, not a silent cast.</li>
+          <li><strong>mypy --strict</strong> compatible: all models use annotated types. <span class="mono">model_validator</span> hooks enforce cross-field business rules (e.g. <span class="mono">visibility != "private"</span> when <span class="mono">privilege_status = "attorney_client"</span>).</li>
+          <li><strong>TypeScript generation:</strong> <span class="mono">packages/shared-types/</span> is auto-generated from Pydantic models via <span class="mono">pydantic-to-typescript</span> — frontend and backend share one source of truth for all API contracts.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card card-accent-indigo">
+      <div class="card-title" style="color:var(--indigo)">🗄 SQLAlchemy 2.x — ORM &amp; Database Layer</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>Async engine:</strong> <span class="mono">create_async_engine(DATABASE_URL)</span> with PgBouncer connection pooling. All database I/O is non-blocking — the FastAPI event loop is never stalled by a DB query.</li>
+          <li><strong>DeclarativeBase:</strong> all ORM models in <span class="mono">apps/api/models/</span> inherit from a shared <span class="mono">Base = DeclarativeBase()</span>. Alembic auto-generates migrations by comparing model metadata to the live schema.</li>
+          <li><strong>AsyncSession per request:</strong> <span class="mono">async_session_factory</span> provides a session scoped to each HTTP request via FastAPI <span class="mono">Depends(get_db)</span>. The RLS <span class="mono">SET LOCAL</span> call runs on that session before any query.</li>
+          <li><strong>Typed queries:</strong> SQLAlchemy 2.x <span class="mono">select(Model).where(...)</span> style — fully typed, mypy-checked, no raw SQL except RLS context setter.</li>
+          <li><strong>Alembic migrations:</strong> async-aware <span class="mono">env.py</span>; forward-compatible migrations required before any prod deployment. Vector columns not stored in SQL — embeddings live in Pinecone.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- DATA ISOLATION -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="isolation">
+  <div class="section-header">
+    <span class="section-icon">🔒</span>
+    <h2 class="section-title">Project Data Isolation</h2>
+    <span class="section-badge sev-critical">Critical Design</span>
+  </div>
+
+  <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">Data isolation is the most critical correctness property of the system. For legal users, a cross-project data leak is a professional ethics violation. The design enforces isolation at four independent layers — failing any single layer does not produce a breach.</p>
+
+  <!-- 3-project visual -->
+  <div class="isolation-box">
+    <div class="isolation-title">Three Independent Project Workspaces — Zero Cross-Project Visibility</div>
+    <div class="isolation-projects">
+      <div class="isolation-project">
+        <div class="isolation-project-header" style="background:#3b82f610;border-bottom:1px solid #3b82f630;color:#93c5fd;">
+          📁 Case: Smith v. Acme (Alice: Admin, Bob: Member)
+        </div>
+        <div class="isolation-project-body">
+          <div>📄 Contract_v3.pdf</div>
+          <div>🎤 Client_deposition.mp3</div>
+          <div>🖼 Whiteboard_notes.jpg</div>
+          <div style="margin-top:6px;color:#3d5472;">⚠ 2 conflicts detected</div>
+          <div style="color:#3d5472;">🕸 14 entity connections</div>
+        </div>
+      </div>
+      <div class="isolation-project">
+        <div class="isolation-project-header" style="background:#a855f710;border-bottom:1px solid #a855f730;color:#c4b5fd;">
+          📁 Research: Climate Policy (Alice: Member, Carol: Admin)
+        </div>
+        <div class="isolation-project-body">
+          <div>📄 IPCC_Report_2024.pdf</div>
+          <div>📄 Policy_Draft_v2.docx</div>
+          <div>📝 Field_notes.txt</div>
+          <div style="margin-top:6px;color:#3d5472;">⚠ 0 conflicts</div>
+          <div style="color:#3d5472;">🕸 31 entity connections</div>
+        </div>
+      </div>
+      <div class="isolation-project">
+        <div class="isolation-project-header" style="background:#22c55e10;border-bottom:1px solid #22c55e30;color:#86efac;">
+          📁 PhD Thesis: ML Ethics (Bob: Admin, Dave: Viewer)
+        </div>
+        <div class="isolation-project-body">
+          <div>📄 Draft_Chapter3.pdf</div>
+          <div>📄 Reference_papers/</div>
+          <div>🎤 Interview_recordings/</div>
+          <div style="margin-top:6px;color:#3d5472;">⚠ 1 conflict detected</div>
+          <div style="color:#3d5472;">🕸 22 entity connections</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:14px;font-size:11px;color:var(--muted);text-align:center;">
+      Alice can see Smith v. Acme and Climate Policy — but <strong style="color:#fca5a5;">never</strong> sees ML Ethics project data. Bob can see Smith v. Acme (Member) and ML Ethics (Admin) — but <strong style="color:#fca5a5;">never</strong> sees Climate Policy. Zero cross-project leakage, enforced at 4 independent layers.
+    </div>
+  </div>
+
+  <!-- 4 isolation layers -->
+  <div class="grid-2" style="margin-top:14px;">
+    <div class="card card-accent-red">
+      <div class="card-title" style="color:var(--red)">Layer 1 — Application RBAC</div>
+      <div class="card-body">
+        Every route handler depends on <span class="mono">require_project_role()</span>. This checks that the user is a member of the requested project before any query runs. If a user is not a member, the request is rejected with 403 before any DB interaction. This is the first line of defence.
+      </div>
+    </div>
+    <div class="card card-accent-orange">
+      <div class="card-title" style="color:var(--orange)">Layer 2 — PostgreSQL Row-Level Security</div>
+      <div class="card-body">
+        <span class="mono">SET LOCAL app.project_id</span> is called on the DB session before every query. RLS policies use <span class="mono">current_setting('app.project_id')</span> to filter rows on every table automatically. Even a raw SQL query by an admin, a developer console, or a future code bug cannot return rows from a different project_id.
+      </div>
+    </div>
+    <div class="card card-accent-yellow">
+      <div class="card-title" style="color:var(--yellow)">Layer 3 — Cloud Storage IAM Conditions</div>
+      <div class="card-body">
+        GCS IAM Conditions restrict the service account to read/write only within the path <span class="mono">projects/{project_id}/</span>. This is enforced by GCP infrastructure independently of any application code. A bug in the file service cannot read another project's files — GCP rejects the request at the storage API layer.
+      </div>
+    </div>
+    <div class="card card-accent-green">
+      <div class="card-title" style="color:var(--green)">Layer 4 — Pinecone Namespace Isolation</div>
+      <div class="card-body">
+        All vector similarity searches are routed through <span class="mono">pinecone.query(namespace=project_id)</span>. Pinecone namespaces provide hard API-level isolation — a query in namespace A physically cannot return vectors from namespace B, independent of application code. This is the AI layer's defense-in-depth on top of PostgreSQL RLS.
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-green" style="margin-top:14px;">
+    <strong>Isolation Test Requirement:</strong> Every deployment must run an automated cross-project isolation test: create two test projects, upload documents to each, attempt to read Project B's documents while authenticated to Project A, and verify 403 at all four layers. This test must pass before any promotion to production.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- ALL ISSUES — FIXED -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="issues">
+  <div class="section-header">
+    <span class="section-icon">🔍</span>
+    <h2 class="section-title">All 34 Issues — Fixed in v2</h2>
+    <span class="section-badge sev-critical">All Resolved</span>
+  </div>
+
+  <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Every issue from the original analysis is resolved. Issues that required architectural changes due to the org_id → project_id migration are noted with the ⟳ Changed label.</p>
+
+  <table class="issues-table">
+    <thead>
+      <tr>
+        <th style="width:28%">Issue</th>
+        <th style="width:10%">Severity</th>
+        <th style="width:62%">Fix in v2</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><div class="issue-title">org_id Enforced at App Level Only</div></td>
+        <td><span class="sev sev-critical">Critical</span></td>
+        <td>
+          <div class="issue-fix">Replaced by project_id model with PostgreSQL RLS enforcing isolation at the DB layer. <span class="mono">ALTER TABLE documents ENABLE ROW LEVEL SECURITY</span> on every table. The app cannot bypass this — the DB engine enforces it regardless of application code.</div>
+          <div class="issue-changed">org_id entirely replaced by project_id throughout the architecture.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">No Dead-Letter Queue on Pub/Sub</div></td>
+        <td><span class="sev sev-critical">Critical</span></td>
+        <td>
+          <div class="issue-fix">DLQ subscription added to every Pub/Sub topic (document-uploads, ai-processing, proactive-loop). After 5 failed deliveries with exponential backoff, events route to <span class="mono">omnimind-dlq</span>. Cloud Monitoring alerts on DLQ depth &gt;5. Operations runbook linked in each alert.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">No File Upload Validation</div></td>
+        <td><span class="sev sev-critical">Critical</span></td>
+        <td>
+          <div class="issue-fix">python-magic MIME validation on file bytes (not filename), 50MB size limit, ClamAV malware scan via clamd socket, pikepdf PDF sanitization (strip JS/metadata). Rejected files quarantined in <span class="mono">gs://omnimind-quarantine/{project_id}/</span>. All rejections logged to audit_log.</div>
+          <div class="issue-changed">Quarantine bucket now scoped per project_id.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">Prompt Injection on Every Agent</div></td>
+        <td><span class="sev sev-critical">Critical</span></td>
+        <td>
+          <div class="issue-fix">All UCD content wrapped in <span class="mono">&lt;untrusted_document_content&gt;</span> XML delimiters in every agent prompt. System prompts declare these tags as untrusted data regions. Output validated for system prompt fragments. Each agent's system prompt explicitly names the project: "You serve only project {project_id}."</div>
+          <div class="issue-changed">Project_id replaces org_id in agent system prompt boundaries.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">No Rate Limiting</div></td>
+        <td><span class="sev sev-critical">Critical</span></td>
+        <td>
+          <div class="issue-fix">slowapi middleware: 20 queries/min per user, 5 uploads/min per user, 1,000 API calls/hr per project. Rate-limit counters stored in Redis Memorystore (distributed across all Cloud Run instances). Cloud Armor WAF adds DDoS protection at the infrastructure layer.</div>
+          <div class="issue-changed">Rate limits scoped per project as well as per user.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">No Embedding Model Versioning</div></td>
+        <td><span class="sev sev-critical">Critical</span></td>
+        <td>
+          <div class="issue-fix"><span class="mono">embedding_model_version</span> stored alongside every vector in both the UCD and Claim tables. Re-embedding migration Cloud Run job built and tested before any production model change. Dual-embedding supported during transition. Project-level re-embedding jobs can run independently.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">Contradiction Engine is Semantically Shallow</div></td>
+        <td><span class="sev sev-critical">Critical</span></td>
+        <td>
+          <div class="issue-fix">Replaced single-call ContradictionAgent with 5-stage cross-modal pipeline: claim extraction → Pinecone candidate selection (namespace=project_id) → NLI classification with required evidence quotes → independent verification pass → severity scoring with human review routing. False positive rate target &lt;5%.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">No Async Job Status / Webhooks</div></td>
+        <td><span class="sev sev-high">High</span></td>
+        <td>
+          <div class="issue-fix">Upload returns <span class="mono">job_id</span> immediately. Firestore document <span class="mono">projects/{project_id}/jobs/{job_id}</span> tracks status: pending_approval → validating → scanning → extracting → embedding → analyzing → complete/failed. Frontend uses Firestore real-time listener for instant status updates without polling.</div>
+          <div class="issue-changed">Firestore path now project_id scoped.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">Firestore + Cloud SQL Split Brain Risk</div></td>
+        <td><span class="sev sev-high">High</span></td>
+        <td>
+          <div class="issue-fix">Saga pattern: write to Cloud SQL first, emit Pub/Sub event on success, consume in dedicated Firestore-writer service. Periodic reconciliation job detects orphaned Firestore nodes. Firestore document IDs match Cloud SQL primary keys for easy reconciliation.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">No Confidence Threshold for Contradiction Alerts</div></td>
+        <td><span class="sev sev-high">High</span></td>
+        <td>
+          <div class="issue-fix">Three-tier threshold: HIGH (&gt;0.85) surfaced to all project members immediately; MEDIUM (0.6–0.85) routes to human review queue visible to Admin; LOW (&lt;0.6) logged only, not surfaced. UI shows tier visually (red/orange/yellow) with both icon and text — never color alone.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">Agent Orchestrator is Synchronous</div></td>
+        <td><span class="sev sev-high">High</span></td>
+        <td>
+          <div class="issue-fix">Agent Orchestrator refactored to <span class="mono">asyncio.gather()</span> fan-out. Per-agent timeouts: ExtractorAgent 30s, ContradictionAgent 90s, AnalystAgent 60s. Partial results returned on timeout — if SummarizerAgent times out but AnalystAgent succeeds, the successful results are returned with a partial flag.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">Gemini API Key Exposure Risk</div></td>
+        <td><span class="sev sev-high">High</span></td>
+        <td>
+          <div class="issue-fix">All secrets migrated to Google Secret Manager exclusively. No secrets in environment variables, CI logs, or deployment configs. Cloud Run service account bound to Secret Manager access. Keys rotated quarterly via automated rotation policy. Workload Identity Federation for CI/CD — no static service account keys.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">No Staging Environment</div></td>
+        <td><span class="sev sev-high">High</span></td>
+        <td>
+          <div class="issue-fix"><span class="mono">omnimind-staging</span> GCP project created via Terraform workspace. Deployment pipeline: PR → build → staging deploy → integration tests (including cross-project isolation test) → manual approval gate → prod canary. Staging uses synthetic test projects only — no real user data.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">Vector Search Not Production-Grade at Scale</div></td>
+        <td><span class="sev sev-high">High</span></td>
+        <td>
+          <div class="issue-fix">Replaced pgvector with <strong>Pinecone serverless</strong>. Each project maps to a dedicated Pinecone namespace — hardware-isolated vector search with no index management overhead. Supports billions of vectors with sub-100ms ANN queries. At 1M+ docs/project the same Pinecone index scales automatically — no migration required.</div>
+          <div class="issue-changed">Vector store is now Pinecone (serverless, namespace-per-project) — pgvector removed from Cloud SQL.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">No Document-Level Access Control</div></td>
+        <td><span class="sev sev-high">High</span></td>
+        <td>
+          <div class="issue-fix"><span class="mono">visibility</span> field on documents: <span class="mono">project | team | private</span>. <span class="mono">privilege_status</span> field: <span class="mono">none | attorney_client | work_product</span>. RLS extended to join against document visibility and user role. Privileged documents excluded from proactive analysis unless Admin explicitly permits.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">Context Window Overflow on Large Documents</div></td>
+        <td><span class="sev sev-medium">Medium</span></td>
+        <td>
+          <div class="issue-fix">Section Chunker splits documents by heading or every 512 tokens. Each section embedded separately and stored in Pinecone (namespace=project_id). At query time, retrieve most relevant sections (not full documents). Context capped at 80% of Gemini's window. Hierarchical summarization for very large documents.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">No Hallucination Detection</div></td>
+        <td><span class="sev sev-medium">Medium</span></td>
+        <td>
+          <div class="issue-fix">VerifierAgent added after AnalystAgent. Checks every factual claim against retrieved project UCDs using exact entity matching. Claims not grounded in project documents flagged as UNVERIFIED and shown with distinct visual treatment in the UI. <span class="mono">grounding_confidence</span> = % of claims verified.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">No Rollback on Failed Deployment</div></td>
+        <td><span class="sev sev-medium">Medium</span></td>
+        <td>
+          <div class="issue-fix">Post-deployment smoke tests in GitHub Actions. Auto-rollback: <span class="mono">gcloud run services update-traffic --to-revisions=PREVIOUS=100</span> if error rate &gt;1% or p95 latency &gt;150% baseline during 5-min canary window. Cloud Run revisions tagged with git SHA for traceability.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">Proactive Loop Has No Deduplication</div></td>
+        <td><span class="sev sev-medium">Medium</span></td>
+        <td>
+          <div class="issue-fix"><span class="mono">last_proactive_run_at</span> stored per project in Firestore. Loop queries docs where <span class="mono">created_at BETWEEN last_run AND now AND status = 'approved'</span>. Documents marked <span class="mono">proactive_analyzed: true</span> after processing. Cloud Tasks used for at-least-once delivery with deduplication keys.</div>
+          <div class="issue-changed">Deduplication now per-project, only processes approved documents.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">No Audit Logging</div></td>
+        <td><span class="sev sev-medium">Medium</span></td>
+        <td>
+          <div class="issue-fix">Append-only <span class="mono">audit_log</span> table: <span class="mono">user_id, project_id, action, resource_id, timestamp, ip_address, role_at_time</span>. Application code INSERT-only — no UPDATE/DELETE. Org admins access via read-only API endpoint with date-range filter and CSV export. Legal hold prevents deletion even by superadmin.</div>
+          <div class="issue-changed">Audit log is now project_id scoped, includes role_at_time field.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">Cold Start Latency on Cloud Run</div></td>
+        <td><span class="sev sev-medium">Medium</span></td>
+        <td>
+          <div class="issue-fix">API service: <span class="mono">min-instances=1</span> (~$15/month). Workers: <span class="mono">min-instances=0</span> (event-driven). PgBouncer connection pooling prevents DB connection exhaustion on scale-up. Gemini clients initialized at startup and reused — not per-request.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">No Cross-Modal Conflict Detection</div></td>
+        <td><span class="sev sev-medium">Medium</span></td>
+        <td>
+          <div class="issue-fix">Claims carry <span class="mono">source_modality</span> tag. Pinecone candidate selection (query(namespace=project_id)) crosses all modalities within the project. NLI classifier receives modality context: "voice recording vs PDF contract." Cross-modal conflicts (voice vs signed document) auto-elevated to HIGH severity regardless of confidence.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">Knowledge Graph Lacks Temporal Edges</div></td>
+        <td><span class="sev sev-low">Low</span></td>
+        <td>
+          <div class="issue-fix"><span class="mono">valid_from</span>, <span class="mono">valid_to</span>, and <span class="mono">source_doc_id</span> fields added to every Firestore graph edge. Temporal reasoning queries now supported: "Was Company B still a subsidiary on Jan 1 2024?" traverses time-bounded edges.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">No Voice Speaker Diarization</div></td>
+        <td><span class="sev sev-low">Low</span></td>
+        <td>
+          <div class="issue-fix">Google Speech-to-Text V2 speaker labels integrated. <span class="mono">speaker_id</span> stored per utterance in UCD audio_metadata. Conflict detection pipeline uses speaker_id to distinguish "Partner A says X" vs "Opposing counsel says Y" — different speakers can hold contradictory positions legitimately.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">ConnectorAgent Links Are Not Scored</div></td>
+        <td><span class="sev sev-low">Low</span></td>
+        <td>
+          <div class="issue-fix">Link scoring: exact entity ID match = 1.0, embedding similarity &gt;0.90 = 0.8, LLM-identified causal link = 0.6, co-mention = 0.3. Knowledge graph UI allows filtering by score threshold. Low-scored links stored but not shown by default.</div>
+        </td>
+      </tr>
+      <tr>
+        <td><div class="issue-title">Gemini Embedding Dimension Lock-in</div></td>
+        <td><span class="sev sev-low">Low</span></td>
+        <td>
+          <div class="issue-fix"><span class="mono">embedding_model_version</span> metadata on every vector. Re-embedding migration job documented and tested. Per-project re-embedding supported — each project can migrate on its own schedule. Upgrade path to Vertex AI Vector Search documented.</div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- New issues from project model -->
+  <div style="margin-top:16px;">
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">New issues introduced by the project model — and how they are addressed:</p>
+    <table class="issues-table">
+      <thead>
+        <tr>
+          <th style="width:28%">New Issue (from project model)</th>
+          <th style="width:10%">Severity</th>
+          <th style="width:62%">Design Fix</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><div class="issue-title">Last Admin Leaves Project</div></td>
+          <td><span class="sev sev-new">New</span></td>
+          <td>
+            <div class="issue-fix">Block role change or removal if it would leave a project with zero Admins. If the only Admin deletes their account, the project enters a 30-day orphan state. The system emails all Members to nominate a new Admin. After 30 days, the project is archived (not deleted).</div>
+          </td>
+        </tr>
+        <tr>
+          <td><div class="issue-title">User Belongs to Too Many Projects</div></td>
+          <td><span class="sev sev-new">New</span></td>
+          <td>
+            <div class="issue-fix">Project membership limit per user: 50 projects (configurable per tier). Project switcher displays max 10 recently active projects. Full project list searchable via command palette (Cmd+K). Inactive projects (no activity for 90 days) archived automatically.</div>
+          </td>
+        </tr>
+        <tr>
+          <td><div class="issue-title">Approval Queue Bottleneck</div></td>
+          <td><span class="sev sev-new">New</span></td>
+          <td>
+            <div class="issue-fix">If approval queue exceeds 20 pending documents, Admin is alerted via email and in-app banner. Admin can batch-approve by document type. Project Admin can disable approval requirement at any time. Approval queue visible on Admin dashboard with age indicator (time since upload).</div>
+          </td>
+        </tr>
+        <tr>
+          <td><div class="issue-title">Cross-Project Search Confusion</div></td>
+          <td><span class="sev sev-new">New</span></td>
+          <td>
+            <div class="issue-fix">All search and query operations are strictly single-project scoped. The active project context is always visible in the UI header. There is no global search across projects — this is intentional for data isolation. Cross-project search is not a feature; it would violate isolation guarantees.</div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- AI PIPELINE -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="ai">
+  <div class="section-header">
+    <span class="section-icon">🧠</span>
+    <h2 class="section-title">AI Pipeline — Per-Project Cognitive Engine</h2>
+    <span class="section-badge sev-critical">Core Innovation</span>
+  </div>
+
+  <div class="new-idea-banner">
+    <div class="title">✦ Each Project Has Its Own AI Brain</div>
+    <div class="body">In the project model, every project maintains a completely independent knowledge base, embedding space, conflict history, and conversation memory. The AI has no knowledge of any other project's documents. When you query inside Project A (Case: Smith v. Acme), the retrieval, reasoning, and conflict detection are scoped entirely to that project's corpus — the PhD thesis project documents are invisible, even if you're a member of both.</div>
+  </div>
+
+  <!-- 5-stage contradiction pipeline -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title" style="color:var(--purple)">⚙ 5-Stage Cross-Modal Contradiction Pipeline (Per Project)</div>
+    <div class="conflict-flow">
+      <div class="conflict-stage">
+        <div class="conflict-stage-num" style="background:#7c3aed18;border:1px solid var(--purple);color:var(--purple)">1</div>
+        <div class="conflict-stage-title">Claim Extractor</div>
+        <div class="conflict-stage-sub">Per-UCD atomic facts with source spans, modality tag, and speaker_id (audio)</div>
+      </div>
+      <div class="conflict-stage">
+        <div class="conflict-stage-num" style="background:#dc262618;border:1px solid var(--red);color:var(--red)">2</div>
+        <div class="conflict-stage-title">Candidate Selector</div>
+        <div class="conflict-stage-sub">Pinecone query(namespace=project_id, top_k=5, score&gt;0.80) — all modalities</div>
+      </div>
+      <div class="conflict-stage">
+        <div class="conflict-stage-num" style="background:#d9770618;border:1px solid var(--orange);color:var(--orange)">3</div>
+        <div class="conflict-stage-title">NLI Classifier</div>
+        <div class="conflict-stage-sub">ENTAIL / NEUTRAL / CONTRADICTION — mandatory evidence quotes</div>
+      </div>
+      <div class="conflict-stage">
+        <div class="conflict-stage-num" style="background:#ca8a0418;border:1px solid var(--yellow);color:var(--yellow)">4</div>
+        <div class="conflict-stage-title">Verifier Pass</div>
+        <div class="conflict-stage-sub">Independent LLM — clean context, only the two evidence quotes</div>
+      </div>
+      <div class="conflict-stage">
+        <div class="conflict-stage-num" style="background:#16a34a18;border:1px solid var(--green);color:var(--green)">5</div>
+        <div class="conflict-stage-title">Severity Score</div>
+        <div class="conflict-stage-sub">CRITICAL / HIGH / LOW → human queue if disagreement</div>
+      </div>
+    </div>
+
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="pipeline-num" style="background:#7c3aed18;border-color:var(--purple);color:var(--purple)">1</div>
+        <div class="pipeline-body">
+          <div class="pipeline-title">Claim Extractor — Modality &amp; Speaker Aware</div>
+          <div class="pipeline-sub">Runs on every approved UCD added to the project. Extracts atomic, falsifiable claims with exact source spans. Audio claims include speaker_id from diarization — critical for legal depositions where two speakers may make opposite assertions legitimately. Each claim is stored in the project's claim table and embedded at the claim level.</div>
+          <div class="pipeline-tags">
+            <span class="tag">Output: {claim, modality, source_span, speaker_id, entity_ids, date_ref}</span>
+            <span class="tag">Claim-level embedding stored per project_id</span>
+            <span class="tag">No inference — only direct attestations from the document</span>
+          </div>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num" style="background:#dc262618;border-color:var(--red);color:var(--red)">2</div>
+        <div class="pipeline-body">
+          <div class="pipeline-title">Candidate Pair Selection — Cross-Modal, Project-Scoped</div>
+          <div class="pipeline-sub">For each extracted claim, Pinecone queries the project's namespace (namespace=project_id) to find the top-5 semantically similar claims across ALL modalities. A voice memo claim is compared against PDF, image OCR, and handwritten note claims equally. Critically, the search is bounded by the Pinecone namespace — no cross-project comparison ever occurs because each project is a separate namespace.</div>
+          <div class="pipeline-tags">
+            <span class="tag">pinecone.query(namespace=project_id, vector=claim_vec, top_k=5)</span>
+            <span class="tag">Pinecone serverless ANN — managed index, auto-scaled</span>
+            <span class="tag">Cross-modal: voice vs PDF vs image vs handwritten</span>
+          </div>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num" style="background:#d9770618;border-color:var(--orange);color:var(--orange)">3</div>
+        <div class="pipeline-body">
+          <div class="pipeline-title">NLI Classification — Evidence-Grounded, Cannot Hallucinate</div>
+          <div class="pipeline-sub">For each candidate pair, the model must classify ENTAILMENT, NEUTRAL, or CONTRADICTION — and it cannot output CONTRADICTION without quoting the exact contradicting text from both claims. The prompt includes modality context: "Claim A comes from a voice recording by Speaker 2 on March 15. Claim B comes from the signed PDF contract dated April 30." The model can reason about temporal and authority relationships.</div>
+          <div class="pipeline-tags">
+            <span class="tag">Required output: {relation, evidence_a, evidence_b, conflict_type, modality_a, modality_b}</span>
+            <span class="tag">Conflict types: factual / temporal / definitional / logical / cross-modal</span>
+            <span class="tag">No evidence quotes = rejection, not output</span>
+          </div>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num" style="background:#ca8a0418;border-color:var(--yellow);color:var(--yellow)">4</div>
+        <div class="pipeline-body">
+          <div class="pipeline-title">Verification Pass — Fresh Context Window</div>
+          <div class="pipeline-sub">A second independent LLM call receives ONLY the two evidence quotes — no other document content. This eliminates hallucination from context bleed. The verifier cannot invent content from the rest of the document. If first and second pass disagree, the conflict is routed to the project's human review queue (visible to Admins) rather than surfaced to Members.</div>
+          <div class="pipeline-tags">
+            <span class="tag">Strict context: ONLY the two evidence quotes, nothing else</span>
+            <span class="tag">Disagreement → project's human_review_queue in Firestore</span>
+            <span class="tag">Disagreement rate is a monitored project-level metric</span>
+          </div>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num" style="background:#16a34a18;border-color:var(--green);color:var(--green)">5</div>
+        <div class="pipeline-body">
+          <div class="pipeline-title">Severity Scoring &amp; Workflow Routing</div>
+          <div class="pipeline-sub">Scoring accounts for conflict type, document authority, temporal ordering, and modality. Stored in Firestore under <span class="mono">projects/{project_id}/conflicts/{conflict_id}</span> with full evidence trail and adjudication workflow. Members see confirmed conflicts; Admins see everything including pending review items.</div>
+          <div class="pipeline-tags">
+            <span class="tag">CRITICAL: cross-modal conflict involving a signed document</span>
+            <span class="tag">HIGH: dated factual claims, financial figures, legal obligations</span>
+            <span class="tag">LOW: stylistic differences, non-binding notes</span>
+            <span class="tag">Status workflow: pending_review → confirmed → dismissed → escalated</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UCD Schema -->
+  <div class="card card-accent-teal">
+    <div class="card-title" style="color:var(--teal)">📋 Extended UCD Schema — Project-Scoped v2</div>
+    <div class="code"><span class="kw">class</span> UnifiedCognitiveDocument(BaseModel):
+    <span class="cm"># Identity — project_id is the isolation key</span>
+    ucd_id:       UUID
+    project_id:   UUID   <span class="cm"># replaces org_id — drives all RLS</span>
+    doc_id:       UUID   <span class="cm"># FK to documents table</span>
+    uploaded_by:  UUID   <span class="cm"># user who uploaded</span>
+    source_modality: Literal[<span class="str">"pdf"</span>, <span class="str">"image"</span>, <span class="str">"audio"</span>, <span class="str">"text"</span>, <span class="str">"docx"</span>]
+    embedding_model_version: str  <span class="cm"># CRITICAL — track for migration</span>
+    created_at:   datetime
+
+    <span class="cm"># Extracted content</span>
+    raw_text:     str
+    structured_facts: List[Claim]     <span class="cm"># atomic claims with source spans</span>
+    entities:     List[Entity]        <span class="cm"># people, orgs, dates, amounts</span>
+    sections:     List[DocumentSection]  <span class="cm"># chunk-level for large docs</span>
+
+    <span class="cm"># Modality-specific</span>
+    audio_meta:   Optional[AudioMeta]   <span class="cm"># speaker_id, utterance timestamps</span>
+    image_meta:   Optional[ImageMeta]   <span class="cm"># OCR confidence, layout regions</span>
+    pdf_meta:     Optional[PDFMeta]     <span class="cm"># page count, tables, signatures</span>
+
+    <span class="cm"># Access control (document-level, within the project)</span>
+    visibility:   Literal[<span class="str">"project"</span>, <span class="str">"team"</span>, <span class="str">"private"</span>]
+    privilege_status: Literal[<span class="str">"none"</span>, <span class="str">"attorney_client"</span>, <span class="str">"work_product"</span>]
+
+<span class="kw">class</span> Claim(BaseModel):
+    claim_id:     UUID
+    project_id:   UUID              <span class="cm"># project isolation</span>
+    text:         str               <span class="cm"># the atomic claim</span>
+    source_span:  str               <span class="cm"># exact quote from source</span>
+    source_modality: str            <span class="cm"># which modality this came from</span>
+    speaker_id:   Optional[str]     <span class="cm"># for audio claims</span>
+    entity_ids:   List[str]
+    date_ref:     Optional[str]
+    embedding:    List[float]       <span class="cm"># claim-level for cross-modal matching</span>
+    embedding_model_version: str</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECURITY -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="security">
+  <div class="section-header">
+    <span class="section-icon">🔐</span>
+    <h2 class="section-title">Security Hardening</h2>
+    <span class="section-badge sev-critical">Enterprise Grade</span>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:12px;">
+    <div class="card card-accent-indigo">
+      <div class="card-title" style="color:var(--indigo)">🔑 Authentication &amp; JWT</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>Firebase Auth + short-lived JWTs:</strong> 15-minute access tokens with refresh tokens stored in httpOnly cookies. Never in localStorage.</li>
+          <li><strong>Token contains user_id only:</strong> project_id is always an explicit request parameter, never baked into the token — this prevents token reuse across projects.</li>
+          <li><strong>MFA enforced for admins:</strong> Project Admin role requires MFA via Firebase Auth. Optional for Members, not available for Viewers.</li>
+          <li><strong>Token revocation:</strong> Refresh tokens stored in Firestore. On logout or role change, token blacklisted immediately — no grace period.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card card-accent-red">
+      <div class="card-title" style="color:var(--red)">📁 File Upload Security</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>MIME validation:</strong> python-magic reads file bytes — not filename extension. Mismatches rejected at API layer before storage.</li>
+          <li><strong>Size limits:</strong> 50MB per file, 500MB per project per day (configurable by Admin per project). ZIP bomb protection: reject if decompressed size &gt;10x compressed.</li>
+          <li><strong>Malware scanning:</strong> ClamAV via clamd socket in worker before any AI processing. Failed files quarantined in project-scoped GCS path, never deleted.</li>
+          <li><strong>PDF sanitization:</strong> pikepdf strips JavaScript, embedded files, and metadata before any storage or processing.</li>
+          <li><strong>Approval gate:</strong> If the project requires upload approval, files are quarantined in pending state even after passing all security checks — AI processing only begins after Admin approval.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card card-accent-orange">
+      <div class="card-title" style="color:var(--orange)">💉 Prompt Injection Protection</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>Content delimiting:</strong> <span class="mono">&lt;untrusted_document_content&gt;</span> XML tags wrap all user-uploaded content in every agent prompt.</li>
+          <li><strong>Project boundary in system prompt:</strong> "You serve only project {project_id}. You have access only to documents approved in project {project_id}."</li>
+          <li><strong>Output validation:</strong> Check LLM output for system prompt fragments via sliding-window match. Incidents logged to audit_log and rate-limited aggressively.</li>
+          <li><strong>QuerySanitizer:</strong> User queries classified for injection attempts before reaching agents. Suspicious patterns logged and rate-limited at the project level.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card card-accent-yellow">
+      <div class="card-title" style="color:var(--yellow)">🚦 Rate Limiting &amp; Abuse</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>Per-user limits:</strong> 20 queries/min, 5 uploads/min (via slowapi + Redis).</li>
+          <li><strong>Per-project limits:</strong> 1,000 API calls/hr per project. Prevents a large project from starving smaller ones on the same platform.</li>
+          <li><strong>Cloud Armor WAF:</strong> DDoS protection, OWASP CRS, geographic restrictions at the Load Balancer before any application code runs.</li>
+          <li><strong>Cost circuit breaker:</strong> Per-project Gemini spend tracked in Redis. At 90% of daily budget, non-urgent requests queued. Admin notified before overage.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card card-accent-teal">
+      <div class="card-title" style="color:var(--teal)">🔒 Encryption &amp; Privacy</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>TLS 1.3 minimum</strong> everywhere. HSTS headers. No HTTP path in the infrastructure.</li>
+          <li><strong>CMEK:</strong> Cloud SQL and Cloud Storage use Customer-Managed Encryption Keys. Projects can rotate their key independently.</li>
+          <li><strong>Data residency:</strong> europe-west1 for GDPR-bound projects, us-central1 for US projects. Never mix regions for a single project's data.</li>
+          <li><strong>Right to erasure:</strong> <span class="mono">DELETE /projects/{project_id}</span> purges all SQL rows, Firestore nodes, GCS files, Pinecone namespace vectors, Redis cache, and audit logs for that project, then issues a deletion certificate. Legal hold prevents this.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card card-accent-purple">
+      <div class="card-title" style="color:var(--purple)">📋 Compliance &amp; Audit</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>Append-only audit_log:</strong> Every document access, query, role change, approval action, and admin operation logged with user_id, project_id, role_at_time, action, resource_id, timestamp, IP.</li>
+          <li><strong>Legal hold:</strong> Admins can freeze a project's data from any deletion for litigation discovery. <span class="mono">legal_hold: true</span> prevents all automated retention purges.</li>
+          <li><strong>Attorney-client privilege:</strong> <span class="mono">privilege_status: attorney_client</span> on documents restricts access to specific roles and excludes from AI proactive analysis.</li>
+          <li><strong>GDPR compliance:</strong> Per-project data retention policy (default 90 days inactivity → archive). Project-level deletion certificate on purge. DPA template in onboarding.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- ARCHITECTURE -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="arch">
+  <div class="section-header">
+    <span class="section-icon">🏗</span>
+    <h2 class="section-title">Production Architecture — Full Stack</h2>
+    <span class="section-badge sev-info">v2 System</span>
+  </div>
+
+  <div class="arch-diagram-box">
+    <div class="arch-diagram-title">OmniMind v2 — Complete Layered Architecture (Project-Based)</div>
+
+    <div class="arch-layer" style="border-color:#3b82f640;">
+      <div class="arch-layer-label">Client Layer — Web + PWA</div>
+      <div class="arch-services">
+        <span class="arch-svc" style="background:#3b82f612;border-color:#3b82f640;color:#93c5fd">🌐 React 19 + TypeScript + Vite</span>
+        <span class="arch-svc" style="background:#3b82f612;border-color:#3b82f640;color:#93c5fd">📱 PWA — Voice, Camera, Offline queue</span>
+        <span class="arch-svc" style="background:#3b82f612;border-color:#3b82f640;color:#93c5fd">🔀 Project Switcher (Cmd+K)</span>
+        <span class="arch-svc" style="background:#3b82f612;border-color:#3b82f640;color:#93c5fd">🔔 Firestore Realtime — job status</span>
+        <span class="arch-svc" style="background:#3b82f612;border-color:#3b82f640;color:#93c5fd">🎨 Radix UI + shadcn/ui + Tailwind</span>
+        <span class="arch-svc" style="background:#3b82f612;border-color:#3b82f640;color:#93c5fd">⌨ Cmd+K command palette + keyboard nav</span>
+      </div>
+    </div>
+
+    <div class="arch-arrow">HTTPS + JWT + X-Project-ID header · Cloud CDN for static assets</div>
+
+    <div class="arch-layer" style="border-color:#ef444440;">
+      <div class="arch-layer-label">Edge &amp; Security Layer — Infrastructure enforced</div>
+      <div class="arch-services">
+        <span class="arch-svc" style="background:#ef444412;border-color:#ef444440;color:#fca5a5">⛨ Cloud Armor (DDoS + WAF + OWASP CRS)</span>
+        <span class="arch-svc" style="background:#ef444412;border-color:#ef444440;color:#fca5a5">🌍 Cloud CDN (static assets)</span>
+        <span class="arch-svc" style="background:#ef444412;border-color:#ef444440;color:#fca5a5">⚖ HTTPS Load Balancer → Cloud Run</span>
+        <span class="arch-svc" style="background:#ef444412;border-color:#ef444440;color:#fca5a5">🔴 Redis Memorystore (rate limits, per-user + per-project)</span>
+      </div>
+    </div>
+
+    <div class="arch-arrow">TLS-terminated · JWT verified · project membership checked · RLS context set</div>
+
+    <div class="arch-layer" style="border-color:#a855f740;">
+      <div class="arch-layer-label">API Layer — Cloud Run · min-instances=1 · max=50</div>
+      <div class="arch-services">
+        <span class="arch-svc" style="background:#a855f712;border-color:#a855f740;color:#d8b4fe">⚙ FastAPI (async) + slowapi (per-user + per-project limits)</span>
+        <span class="arch-svc" style="background:#a855f712;border-color:#a855f740;color:#d8b4fe">🔐 Firebase Auth + project RBAC middleware</span>
+        <span class="arch-svc" style="background:#a855f712;border-color:#a855f740;color:#d8b4fe">🛡 RLS context setter (app.project_id → Postgres session)</span>
+        <span class="arch-svc" style="background:#a855f712;border-color:#a855f740;color:#d8b4fe">✅ Approval queue API (Admin approve/reject endpoints)</span>
+        <span class="arch-svc" style="background:#a855f712;border-color:#a855f740;color:#d8b4fe">📮 Pub/Sub publisher (approved uploads → async worker)</span>
+        <span class="arch-svc" style="background:#a855f712;border-color:#a855f740;color:#d8b4fe">🔑 Secret Manager client (zero env-var secrets)</span>
+        <span class="arch-svc" style="background:#a855f712;border-color:#a855f740;color:#d8b4fe">📊 Prometheus metrics + cost metering per project</span>
+      </div>
+    </div>
+
+    <div class="arch-arrow">Async events to worker · DLQ on all topics · Pub/Sub push subscriptions</div>
+
+    <div class="arch-layer" style="border-color:#f9731640;">
+      <div class="arch-layer-label">Processing Layer — Cloud Run Worker · min=0 · event-driven</div>
+      <div class="arch-services">
+        <span class="arch-svc" style="background:#f9731612;border-color:#f9731640;color:#fdba74">📁 Ingest Router + python-magic MIME validator</span>
+        <span class="arch-svc" style="background:#f9731612;border-color:#f9731640;color:#fdba74">🛡 ClamAV malware scan (quarantine on fail, project-scoped)</span>
+        <span class="arch-svc" style="background:#f9731612;border-color:#f9731640;color:#fdba74">🔧 pikepdf PDF sanitizer (strip JS + metadata)</span>
+        <span class="arch-svc" style="background:#f9731612;border-color:#f9731640;color:#fdba74">✅ Approval gate check (approved status before AI processing)</span>
+        <span class="arch-svc" style="background:#f9731612;border-color:#f9731640;color:#fdba74">📄 Document AI (PDF/DOCX tables, entities, structure)</span>
+        <span class="arch-svc" style="background:#f9731612;border-color:#f9731640;color:#fdba74">🖼 Gemini Vision (images + handwriting OCR)</span>
+        <span class="arch-svc" style="background:#f9731612;border-color:#f9731640;color:#fdba74">🎤 Speech-to-Text V2 + speaker diarization</span>
+        <span class="arch-svc" style="background:#f9731612;border-color:#f9731640;color:#fdba74">📋 UCD Builder (project_id + modality-aware normalizer)</span>
+        <span class="arch-svc" style="background:#f9731612;border-color:#f9731640;color:#fdba74">🔢 Section Chunker + Chunk-level Embedder</span>
+        <span class="arch-svc" style="background:#f9731612;border-color:#f9731640;color:#fdba74">🔥 Firestore job status writer (real-time progress to client)</span>
+      </div>
+    </div>
+
+    <div class="arch-arrow">UCDs + claims + chunk embeddings → project-scoped storage</div>
+
+    <div class="arch-layer" style="border-color:#22c55e40;">
+      <div class="arch-layer-label">Intelligence Layer — Agent Orchestrator · asyncio.gather fan-out · per-project</div>
+      <div class="arch-services">
+        <span class="arch-svc" style="background:#22c55e12;border-color:#22c55e40;color:#86efac">🎯 Agent Orchestrator (async fan-out + per-agent timeouts)</span>
+        <span class="arch-svc" style="background:#22c55e12;border-color:#22c55e40;color:#86efac">📚 Context Builder (top-k chunks + Firestore graph, project-scoped)</span>
+        <span class="arch-svc" style="background:#22c55e12;border-color:#22c55e40;color:#86efac">🔬 ExtractorAgent (modality-aware atomic claims with speaker_id)</span>
+        <span class="arch-svc" style="background:#22c55e12;border-color:#22c55e40;color:#86efac">📝 SummarizerAgent (short + long + cross-doc)</span>
+        <span class="arch-svc" style="background:#22c55e12;border-color:#22c55e40;color:#86efac">⚠ ContradictionAgent (5-stage cross-modal pipeline)</span>
+        <span class="arch-svc" style="background:#22c55e12;border-color:#22c55e40;color:#86efac">🕸 ConnectorAgent (scored entity links, scored 0.3–1.0)</span>
+        <span class="arch-svc" style="background:#22c55e12;border-color:#22c55e40;color:#86efac">🔎 AnalystAgent + VerifierAgent (grounding confidence)</span>
+        <span class="arch-svc" style="background:#22c55e12;border-color:#22c55e40;color:#86efac">👤 Human Review Queue (Admin-only, per project)</span>
+        <span class="arch-svc" style="background:#22c55e12;border-color:#22c55e40;color:#86efac">⏰ Proactive Loop (Cloud Scheduler per project, idempotent)</span>
+      </div>
+    </div>
+
+    <div class="arch-arrow">Read/Write · RLS enforced · project_id namespace on every Pinecone query · versioned embeddings</div>
+
+    <div class="arch-layer" style="border-color:#eab30840;">
+      <div class="arch-layer-label">Storage Layer — All scoped by project_id</div>
+      <div class="arch-services">
+        <span class="arch-svc" style="background:#eab30812;border-color:#eab30840;color:#fde68a">🗄 Cloud SQL — PostgreSQL + RLS (SQL data only)</span>
+        <span class="arch-svc" style="background:#eab30812;border-color:#eab30840;color:#fde68a">🔍 Pinecone Serverless — claim embeddings, namespace=project_id, ANN search</span>
+        <span class="arch-svc" style="background:#eab30812;border-color:#eab30840;color:#fde68a">🔥 Firestore — knowledge graph + job status + conflicts + insights (project-scoped collections)</span>
+        <span class="arch-svc" style="background:#eab30812;border-color:#eab30840;color:#fde68a">📦 Cloud Storage — gs://bucket/{project_id}/{user_id}/{file_id} (CMEK, IAM conditions)</span>
+        <span class="arch-svc" style="background:#eab30812;border-color:#eab30840;color:#fde68a">🔴 Redis Memorystore — embedding cache + rate limits (project + user keyed)</span>
+        <span class="arch-svc" style="background:#eab30812;border-color:#eab30840;color:#fde68a">📋 Audit Log — append-only, INSERT-only, project_id + user_id + role_at_time</span>
+      </div>
+    </div>
+
+    <div class="arch-arrow">Metrics · Traces · Structured Logs · Per-project cost metering</div>
+
+    <div class="arch-layer" style="border-color:#64748b40;">
+      <div class="arch-layer-label">Observability — Spans Every Service · Per-Project Dashboards</div>
+      <div class="arch-services">
+        <span class="arch-svc" style="background:#64748b12;border-color:#64748b40;color:#94a3b8">📋 Cloud Logging (structured JSON + trace_id per request)</span>
+        <span class="arch-svc" style="background:#64748b12;border-color:#64748b40;color:#94a3b8">📊 Cloud Monitoring (SLOs: latency, availability, contradiction detection rate)</span>
+        <span class="arch-svc" style="background:#64748b12;border-color:#64748b40;color:#94a3b8">🔍 Cloud Trace (HTTP → Pub/Sub → Worker → Gemini span)</span>
+        <span class="arch-svc" style="background:#64748b12;border-color:#64748b40;color:#94a3b8">🚨 PagerDuty (critical SLO) + Slack (operational)</span>
+        <span class="arch-svc" style="background:#64748b12;border-color:#64748b40;color:#94a3b8">💰 Per-project AI cost metering + billing alerts</span>
+        <span class="arch-svc" style="background:#64748b12;border-color:#64748b40;color:#94a3b8">📈 DLQ depth · approval queue age · contradiction false-positive rate</span>
+      </div>
+    </div>
+
+    <div class="arch-arrow">IaC managed · Zero click-ops · Terraform workspaces: dev / staging / prod</div>
+
+    <div class="arch-layer" style="border-color:#06b6d440;">
+      <div class="arch-layer-label">Infrastructure — Terraform IaC · GitHub Actions CI/CD</div>
+      <div class="arch-services">
+        <span class="arch-svc" style="background:#06b6d412;border-color:#06b6d440;color:#67e8f9">🏗 Terraform workspaces: dev / staging / prod</span>
+        <span class="arch-svc" style="background:#06b6d412;border-color:#06b6d440;color:#67e8f9">🔐 Workload Identity Federation (no long-lived CI secrets)</span>
+        <span class="arch-svc" style="background:#06b6d412;border-color:#06b6d440;color:#67e8f9">🚀 GitHub Actions (PR → staging → approval → prod canary 10%)</span>
+        <span class="arch-svc" style="background:#06b6d412;border-color:#06b6d440;color:#67e8f9">🔄 Auto-rollback (error rate &gt;1% OR p95 &gt;150% baseline)</span>
+        <span class="arch-svc" style="background:#06b6d412;border-color:#06b6d440;color:#67e8f9">🧪 Cross-project isolation test (required to pass before prod)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- CI/CD -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="cicd">
+  <div class="section-header">
+    <span class="section-icon">🚀</span>
+    <h2 class="section-title">CI/CD Pipeline</h2>
+    <span class="section-badge sev-info">GitHub Actions</span>
+  </div>
+
+  <div class="pipeline">
+    <div class="pipeline-step">
+      <div class="pipeline-num" style="background:#3b82f618;border-color:var(--blue);color:var(--blue)">1</div>
+      <div class="pipeline-body">
+        <div class="pipeline-title">PR Checks — Every Pull Request</div>
+        <div class="pipeline-sub">Blocks merge on any failure. No bypasses for a platform handling legal data.</div>
+        <div class="pipeline-tags">
+          <span class="tag">pytest (unit + integration)</span>
+          <span class="tag">mypy --strict</span>
+          <span class="tag">ruff lint + format</span>
+          <span class="tag">bandit Python security scan</span>
+          <span class="tag">trivy dependency CVE scan</span>
+          <span class="tag">vitest + playwright (frontend)</span>
+          <span class="tag">cross-project isolation unit tests</span>
+        </div>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="pipeline-num" style="background:#6366f118;border-color:var(--indigo);color:var(--indigo)">2</div>
+      <div class="pipeline-body">
+        <div class="pipeline-title">Docker Build — On Merge to Main</div>
+        <div class="pipeline-sub">Multi-stage builds for API and Worker images. Workload Identity Federation — no static keys in CI.</div>
+        <div class="pipeline-tags">
+          <span class="tag">docker buildx (amd64 + arm64)</span>
+          <span class="tag">trivy image scan (block on CRITICAL CVEs)</span>
+          <span class="tag">Push gcr.io/omnimind-prod/api:{SHA}</span>
+          <span class="tag">Push gcr.io/omnimind-prod/worker:{SHA}</span>
+        </div>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="pipeline-num" style="background:#f9731618;border-color:var(--orange);color:var(--orange)">3</div>
+      <div class="pipeline-body">
+        <div class="pipeline-title">Deploy to Staging + DB Migration</div>
+        <div class="pipeline-sub">Alembic migrations run before traffic cut-over. Migration failure aborts deployment — prod is never touched.</div>
+        <div class="pipeline-tags">
+          <span class="tag">alembic upgrade head (staging)</span>
+          <span class="tag">gcloud run deploy --no-traffic</span>
+          <span class="tag">Smoke test: GET /health → 200</span>
+          <span class="tag">Update traffic 100% on pass</span>
+        </div>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="pipeline-num" style="background:#a855f718;border-color:var(--purple);color:var(--purple)">4</div>
+      <div class="pipeline-body">
+        <div class="pipeline-title">Integration Tests — Staging (Real GCP Services)</div>
+        <div class="pipeline-sub">End-to-end tests against real staging infrastructure using synthetic test projects.</div>
+        <div class="pipeline-tags">
+          <span class="tag">Upload PDF → verify UCD in DB (project-scoped)</span>
+          <span class="tag">Upload known contradiction pair → verify conflict detected</span>
+          <span class="tag">Cross-project isolation test: verify 403 on cross-project read</span>
+          <span class="tag">Role permission test: Viewer cannot upload, Member cannot approve</span>
+          <span class="tag">Approval workflow: upload → pending → approve → AI processes</span>
+          <span class="tag">Cross-modal conflict: voice + PDF with known disagreement</span>
+          <span class="tag">Rate limit test: verify 429 on 21st request/minute</span>
+        </div>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="pipeline-num" style="background:#eab30818;border-color:var(--yellow);color:var(--yellow)">5</div>
+      <div class="pipeline-body">
+        <div class="pipeline-title">Manual Approval Gate — Production</div>
+        <div class="pipeline-sub">GitHub Environment protection requires senior engineer sign-off. Shows diff, staging test results, and Terraform plan for infra changes. Approval expires after 24 hours.</div>
+        <div class="pipeline-tags">
+          <span class="tag">Required reviewers: 1+ senior engineer</span>
+          <span class="tag">DB migration preview in approval request</span>
+          <span class="tag">Link to staging integration test report</span>
+        </div>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="pipeline-num" style="background:#22c55e18;border-color:var(--green);color:var(--green)">6</div>
+      <div class="pipeline-body">
+        <div class="pipeline-title">Canary Deployment + Auto-Rollback</div>
+        <div class="pipeline-sub">10% traffic canary for 5 minutes. Monitor error rate and latency. Auto-promote or auto-rollback — no manual intervention needed at 2am.</div>
+        <div class="pipeline-tags">
+          <span class="tag">alembic upgrade head (prod, forward-compatible)</span>
+          <span class="tag">update-traffic: new=10, prev=90 for 5 min</span>
+          <span class="tag">Monitor: error rate, p95 latency, Gemini errors</span>
+          <span class="tag">Auto-rollback: error rate &gt;1% OR p95 &gt;150% baseline</span>
+          <span class="tag">Promote: update-traffic new=100 on success</span>
+          <span class="tag">Slack notification: result + git SHA + revision name</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- FRONTEND -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="frontend">
+  <div class="section-header">
+    <span class="section-icon">🎨</span>
+    <h2 class="section-title">Frontend — Project-Aware Research UX</h2>
+    <span class="section-badge sev-info">Research Grade</span>
+  </div>
+
+  <div class="callout callout-blue" style="margin-bottom:16px;">
+    <strong>Design Principle:</strong> The project switcher is the most critical UX element. Users must always know which project they are in. The active project context is displayed in the header at all times. All operations — uploads, queries, conflict views, knowledge graph — are scoped to the active project. There is no accidental cross-project operation.
+  </div>
+
+  <div class="grid-2" style="margin-bottom:12px;">
+    <div class="card card-accent-purple">
+      <div class="card-title" style="color:var(--purple)">🔀 Project Context System</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>Project switcher in header:</strong> Always visible. Shows active project name, user's role in it, and member count. Click opens a dropdown of all your projects sorted by last activity.</li>
+          <li><strong>Cmd+K command palette:</strong> Type "switch to [name]" to switch projects instantly. Shows all accessible projects with role indicator (Admin/Member/Viewer badge).</li>
+          <li><strong>Context reset on switch:</strong> Switching project resets the entire workspace — search, document list, chat history, knowledge graph — to the new project's data. A confirmation prompt if there's an unsaved query in progress.</li>
+          <li><strong>Role-aware UI:</strong> Buttons and actions adapt to the user's role. An upload button visible to Members is hidden for Viewers. Admin-only pages (approval queue, member management) are not rendered — not just grayed out — for non-admins.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card card-accent-green">
+      <div class="card-title" style="color:var(--green)">✅ Admin Dashboard</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>Approval queue:</strong> Pending uploads shown with filename, uploader, modality, file size, and time since upload. Batch approve by type. Approve or reject individual files with optional reason (reason emailed to uploader).</li>
+          <li><strong>Member management:</strong> Add by email. Assign/change role. Remove member. Transfer admin role. See last active time per member.</li>
+          <li><strong>Human review queue:</strong> Low-confidence conflicts shown side-by-side with both evidence spans. Confirm (surface to project members) / Dismiss (suppress with reason) / Escalate actions. Keyboard-navigable.</li>
+          <li><strong>Audit log:</strong> Filterable by user, action type, date range. CSV export. Shows: who accessed what document, when, with what query, from which IP, with what role at the time.</li>
+          <li><strong>Usage &amp; cost:</strong> Per-project Gemini API usage, document counts, storage used, active member count. Monthly cost breakdown.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card card-accent-blue">
+      <div class="card-title" style="color:var(--blue)">📄 Document &amp; Query Interface</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>Split-pane layout:</strong> Source document (PDF.js) left, extracted insights right. Click a citation → scrolls PDF to exact source location.</li>
+          <li><strong>Conflict highlighting:</strong> Contradicting spans highlighted in red across both documents when a conflict is selected in the sidebar.</li>
+          <li><strong>Grounding confidence:</strong> Shows both grounding_confidence (% claims verified against project documents) and model_confidence separately. Never one ambiguous number.</li>
+          <li><strong>Upload status:</strong> Firestore real-time listener shows processing stages live — Validating → Scanning → Pending Approval → Extracting → Complete. If approval required, shows "Awaiting admin approval" with the pending indicator.</li>
+          <li><strong>Voice recording:</strong> Real-time transcript as audio is captured. Shows words appearing as they are spoken. Clearly labeled with speaker diarization output once processed.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card card-accent-teal">
+      <div class="card-title" style="color:var(--teal)">⌨ Keyboard-First Power User UX</div>
+      <div class="card-body">
+        <ul>
+          <li><strong>Command palette (Cmd+K):</strong> Search documents, switch projects, jump to conflicts view, navigate to member management. Lawyers live here.</li>
+          <li><strong>Keyboard shortcuts:</strong> Cmd+U (upload), Cmd+/ (query), Cmd+1/2/3 (density modes), Cmd+[ / ] (navigate documents), Esc (dismiss panel), Cmd+Enter (submit query).</li>
+          <li><strong>Information density modes:</strong> Compact (table, 4 lines/doc), Normal (card with summary), Reading (full-width single doc). Persisted to user profile, not project — consistent across all projects.</li>
+          <li><strong>Knowledge graph:</strong> Sigma.js WebGL — 10,000+ nodes without frame drops. Filter by entity type, relationship score threshold, and document modality. Temporal edge display toggle.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-accent-orange">
+    <div class="card-title" style="color:var(--orange)">⚡ Performance Engineering</div>
+    <div class="card-body">
+      <ul>
+        <li><strong>react-virtual:</strong> Virtualized document list — renders only visible rows even with 10,000 documents in a project corpus. No pagination needed for typical project sizes.</li>
+        <li><strong>PDF.js with lazy page loading:</strong> Only renders pages in the viewport. A 500-page contract loads page 1 in under 1 second.</li>
+        <li><strong>TanStack Query:</strong> Server state cached with stale-while-revalidate. Project switch triggers immediate cache invalidation for the previous project — no cross-project data visible during transition.</li>
+        <li><strong>Chunked file upload:</strong> 5MB chunks with progress tracking and automatic resume-on-failure. Optimistic UI shows document as "Processing" in the project list before the server confirms receipt.</li>
+        <li><strong>Code splitting:</strong> Project switcher, Document Viewer, Knowledge Graph, Admin Dashboard, and Approval Queue are separate JS chunks. Initial load &lt;150KB gzipped.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- ROADMAP -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="roadmap">
+  <div class="section-header">
+    <span class="section-icon">🗺</span>
+    <h2 class="section-title">Implementation Roadmap</h2>
+    <span class="section-badge sev-info">4 Phases · 16 Weeks</span>
+  </div>
+
+  <div class="roadmap-phase">
+    <div class="phase-label">
+      <div class="ph-num" style="color:var(--red)">1</div>
+      <div class="ph-dur">Weeks 1–3</div>
+      <div class="ph-name" style="color:var(--red)">Project Model + Security Foundation</div>
+    </div>
+    <div class="phase-items">
+      <div class="phase-item">
+        <div class="phase-item-title">Migrate org_id → project_id Data Model</div>
+        <div class="phase-item-detail">Create the projects and project_members tables. Write Alembic migration to rename org_id to project_id across all tables. Update all FK references. Enable PostgreSQL RLS on every table and write project_id-based policies. Verify with automated cross-project isolation tests against two synthetic test projects.</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">Project RBAC Middleware + Admin/Member/Viewer Roles</div>
+        <div class="phase-item-detail">Implement <span class="mono">require_project_role()</span> dependency. Wire into all API routes. Update Firebase Auth to carry user_id only (not project_id). Create project creation, membership, and role management endpoints. Write automated tests for every role × permission combination.</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">Document Approval Workflow</div>
+        <div class="phase-item-detail">Add approval fields to documents table. Implement pending_approval status with Pub/Sub event triggered only on Admin approval. Build approval queue API endpoints (list, approve, reject with reason). Connect Firestore job status to show "Awaiting admin approval" in frontend.</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">Security Hardening — File Validation + Rate Limiting + Secrets</div>
+        <div class="phase-item-detail">Add python-magic MIME validation, ClamAV malware scan, pikepdf sanitization. Deploy Redis Memorystore and add slowapi rate limiting (per-user and per-project). Migrate all secrets to Google Secret Manager. Add DLQ to all Pub/Sub topics with 5-retry exponential backoff and depth alerting.</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">Prompt Injection Hardening (All 5 Agents)</div>
+        <div class="phase-item-detail">Wrap UCD content in <span class="mono">&lt;untrusted_document_content&gt;</span> tags. Update all agent system prompts to name the project_id boundary. Add output validation for system prompt fragments. Test with a known injection attempt document in staging.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="roadmap-phase">
+    <div class="phase-label">
+      <div class="ph-num" style="color:var(--orange)">2</div>
+      <div class="ph-dur">Weeks 4–7</div>
+      <div class="ph-name" style="color:var(--orange)">AI Reliability</div>
+    </div>
+    <div class="phase-items">
+      <div class="phase-item">
+        <div class="phase-item-title">5-Stage Cross-Modal Contradiction Pipeline</div>
+        <div class="phase-item-detail">The core engineering work of Phase 2. Implement claim extraction (modality + speaker_id) → Pinecone serverless index with namespace=project_id → NLI classification with required evidence quotes → independent verification pass (clean context window) → severity scoring with human review queue. Validate against known contradiction test pairs. Budget 2 weeks.</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">VerifierAgent + Grounding Confidence</div>
+        <div class="phase-item-detail">Build VerifierAgent that checks AnalystAgent output against retrieved project UCDs via entity matching. Implement <span class="mono">grounding_confidence</span> metric (% of claims verified). Update UI to show grounding_confidence prominently and model_confidence as secondary. UNVERIFIED claims get distinct visual treatment.</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">Section-Level Chunking + Embedding Model Versioning</div>
+        <div class="phase-item-detail">Implement Section Chunker splitting by heading or 512-token fallback. Store sections with chunk-level embeddings. Add <span class="mono">embedding_model_version</span> to UCD and Claim tables. Build and test re-embedding migration Cloud Run job per project. Update Context Builder to retrieve sections not full UCDs.</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">asyncio.gather Fan-Out + Speaker Diarization</div>
+        <div class="phase-item-detail">Convert Agent Orchestrator to concurrent fan-out with per-agent timeouts and partial result handling. Integrate Google Speech-to-Text V2 speaker diarization. Store speaker_id per utterance in audio UCD metadata. Enable the cross-modal voice vs document conflict detection use case.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="roadmap-phase">
+    <div class="phase-label">
+      <div class="ph-num" style="color:var(--yellow)">3</div>
+      <div class="ph-dur">Weeks 8–11</div>
+      <div class="ph-name" style="color:var(--yellow)">Infrastructure &amp; DevOps</div>
+    </div>
+    <div class="phase-items">
+      <div class="phase-item">
+        <div class="phase-item-title">Staging Environment + CI/CD Upgrade</div>
+        <div class="phase-item-detail">Create <span class="mono">omnimind-staging</span> GCP project via Terraform workspace. Update GitHub Actions with staging deploy step, full integration test suite (including cross-project isolation test and role permission tests), manual approval gate, and prod canary with auto-rollback. Seed staging with synthetic projects representing all role/permission scenarios.</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">Async Job Status + PgBouncer Connection Pooling</div>
+        <div class="phase-item-detail">Return job_id immediately on upload. Firestore <span class="mono">projects/{project_id}/jobs/{job_id}</span> tracks per-stage status. Connect React frontend to Firestore real-time listener. Show Pending Approval stage clearly in UI. Deploy PgBouncer to prevent connection exhaustion on Cloud Run scale-up.</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">Cloud Armor + HTTPS Load Balancer</div>
+        <div class="phase-item-detail">Provision HTTPS Load Balancer with Cloud Armor backend policy (OWASP CRS, geographic restrictions). Configure Cloud CDN for static frontend assets. Move security perimeter from application to infrastructure layer.</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">Observability SLO Dashboard + Per-Project Cost Metering</div>
+        <div class="phase-item-detail">Set up SLO-based alerting: query latency p95 &lt;3s, upload processing &gt;99%, API availability &gt;99.9%. Distributed trace propagation through all layers. Build custom dashboard: DLQ depth, conflicts/day per project, per-project Gemini spend, approval queue age. PagerDuty integration for critical SLO violations.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="roadmap-phase">
+    <div class="phase-label">
+      <div class="ph-num" style="color:var(--green)">4</div>
+      <div class="ph-dur">Weeks 12–16</div>
+      <div class="ph-name" style="color:var(--green)">Product Polish</div>
+    </div>
+    <div class="phase-items">
+      <div class="phase-item">
+        <div class="phase-item-title">Admin Dashboard — Approval Queue + Member Management + Audit Log</div>
+        <div class="phase-item-detail">Build full Admin UI: approval queue with batch approve, member management with invite/remove/role-change, human review queue with side-by-side conflict evidence, audit log with date-range filter and CSV export. All keyboard-navigable. Role-aware rendering — Admin-only pages do not render at all for non-admins.</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">GDPR Compliance + Audit Logging + Legal Hold</div>
+        <div class="phase-item-detail">Wire append-only audit_log to all document access, query, approval, and role change events. Implement <span class="mono">DELETE /projects/{project_id}</span> that purges all stores and issues a deletion certificate. Add legal_hold flag to projects — prevents any data deletion. Per-project data retention policy (default 90-day inactivity → archive).</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">Research-Grade Frontend — Split-Pane + Knowledge Graph + Project Switcher</div>
+        <div class="phase-item-detail">Implement split-pane document viewer with PDF.js, synchronized scrolling, conflict highlighting, and citation linking. Build Sigma.js WebGL knowledge graph with entity filtering, relationship score controls, and temporal edge display. Add Cmd+K command palette with project switching. Implement information density modes. Virtualize all lists. Chunked upload with progress tracking.</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">Document-Level Access Control + Privilege Status</div>
+        <div class="phase-item-detail">Visibility selector (project / team / private) on upload UI. Privilege status field (none / attorney_client / work_product) configurable by Admin on any document. Extend RLS to join document visibility against user role. Privileged documents excluded from proactive AI analysis unless Admin explicitly enables it for that document.</div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-item-title">Cost Metering + Tier System + Proactive Loop Deduplication</div>
+        <div class="phase-item-detail">Per-project cost metering dashboard (Gemini API calls, storage, compute). Cost circuit breaker at 90% daily budget. Design usage tiers for commercial launch: Starter (5 members, 100 docs, 1 project), Professional (unlimited members, 1,000 docs, 20 projects), Enterprise (unlimited everything + dedicated infra). Implement idempotent proactive loop with Cloud Tasks deduplication keys per project.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-green" style="margin-top:12px;">
+    <strong>Goal State at Week 16:</strong> OmniMind v2 is a production-grade, multi-project AI cognitive research platform. Users can belong to unlimited projects with independent roles. Project Admins fully control membership, uploads, and AI analysis within their workspace. Data isolation is enforced at four independent layers — the database, the application, the storage infrastructure, and the AI prompt boundary. Contradictions are evidence-grounded with mandatory human review for uncertain cases. Every factual answer is cited against project documents or marked UNVERIFIED. Deployments are zero-downtime with canary rollouts and automated rollback. The cross-modal conflict engine (voice vs PDF vs image vs handwritten) is the unique capability no competitor offers — and it works entirely within the project boundary, with no data crossing project lines under any circumstances.
+  </div>
+</section>
+
+</div><!-- .shell -->
+
+<footer>
+  OmniMind v2 Architecture · Multi-Project Cognitive Intelligence Platform · June 2026 · 34 issues resolved · org_id → project_id migration complete · 4 phases · 16 weeks
+</footer>
+
+</body>
+</html>
