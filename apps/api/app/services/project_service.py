@@ -29,6 +29,9 @@ class ProjectService:
         db.add(member)
         await db.commit()
         await db.refresh(project)
+        
+        # Attach role for response serialization
+        project.role = "admin"
         return project
 
     @staticmethod

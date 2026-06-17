@@ -7,31 +7,59 @@ import { AuthenticatedRoute } from '../features/auth/AuthenticatedRoute';
 
 import { UploadQueueWidget } from '../features/upload/UploadQueueWidget';
 import { NavLink } from 'react-router-dom';
+import { Moon, Sun } from 'lucide-react';
 
 // Lazy loading features for code splitting
 const AdminDashboard = React.lazy(() => import('../features/admin-dashboard/AdminDashboard'));
 const ChatPage = React.lazy(() => import('../features/chat/ChatPage').then(m => ({ default: m.ChatPage })));
+const MemberManagementPage = React.lazy(() => import('../features/members/MemberManagementPage'));
+const AcceptInvitationPage = React.lazy(() => import('../features/members/AcceptInvitationPage'));
+import { HomePage } from '../features/home/HomePage';
 // Other lazy components can be added here
 
 const AppLayout = () => {
+  const [isDark, setIsDark] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsDark(document.documentElement.classList.contains('dark'));
+  }, []);
+
+  const toggleTheme = () => {
+    document.documentElement.classList.toggle('dark');
+    setIsDark(!isDark);
+  };
+
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col relative">
+    <div className="min-h-screen bg-background text-foreground flex flex-col relative transition-colors duration-200">
       <CommandPalette />
       <UploadQueueWidget />
       <header className="border-b px-4 py-3 flex justify-between items-center bg-card">
         <div className="flex items-center gap-6">
           <h1 className="text-xl font-bold tracking-tight">OmniMind v2</h1>
           <nav className="hidden md:flex gap-4 ml-4">
-            <NavLink to="/" className={({isActive}) => `text-sm font-medium transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+            <NavLink to="/" end className={({isActive}) => `text-sm font-medium transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+              Home
+            </NavLink>
+            <NavLink to="/admin" className={({isActive}) => `text-sm font-medium transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
               Dashboard
             </NavLink>
             <NavLink to="/chat" className={({isActive}) => `text-sm font-medium transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
               Chat
             </NavLink>
+            <NavLink to="/members" className={({isActive}) => `text-sm font-medium transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+              Members
+            </NavLink>
           </nav>
         </div>
         <div className="flex items-center gap-4">
-           <ProjectSwitcher />
+          <button 
+            onClick={toggleTheme}
+            className="p-2 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="Toggle theme"
+          >
+            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+          <ProjectSwitcher />
         </div>
       </header>
       <main className="flex-1 p-4">
@@ -49,6 +77,14 @@ export const router = createBrowserRouter([
     element: <Login />,
   },
   {
+    path: '/accept-invite/:token',
+    element: (
+      <Suspense fallback={<div>Loading...</div>}>
+        <AcceptInvitationPage />
+      </Suspense>
+    ),
+  },
+  {
     path: '/',
     element: (
       <AuthenticatedRoute>
@@ -58,7 +94,7 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '',
-        element: <div>Welcome to OmniMind v2! Press Cmd+K to navigate.</div>,
+        element: <HomePage />,
       },
       {
         path: 'admin/*',
@@ -67,6 +103,10 @@ export const router = createBrowserRouter([
       {
         path: 'chat',
         element: <ChatPage />,
+      },
+      {
+        path: 'members',
+        element: <MemberManagementPage />,
       },
     ],
   },

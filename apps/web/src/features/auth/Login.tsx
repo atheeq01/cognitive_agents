@@ -9,7 +9,7 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { user, loginWithMock } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -55,10 +55,6 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleDevLogin = () => {
-    // Sets the mock user in AuthContext → triggers the useEffect above → navigates
-    loginWithMock();
-  };
 
   if (user) return null; // Already authed, waiting for useEffect to navigate
 
@@ -150,16 +146,6 @@ export const Login: React.FC = () => {
               </svg>
               Sign in with Google
             </button>
-            
-            {import.meta.env.DEV && (
-              <button
-                id="dev-bypass-login"
-                onClick={handleDevLogin}
-                className="w-full flex justify-center py-2 px-4 border border-dashed border-primary/50 rounded-md shadow-sm bg-primary/5 text-sm font-medium text-primary hover:bg-primary/10 focus:outline-none"
-              >
-                ⚡ Bypass Login (Dev Mode)
-              </button>
-            )}
           </div>
         </div>
       </div>

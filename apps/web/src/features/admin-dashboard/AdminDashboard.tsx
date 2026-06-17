@@ -3,7 +3,10 @@ import { useProject } from '../../app/providers/ProjectProvider';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../lib/api';
 import { toast } from 'sonner';
-
+import { DocumentUpload } from '../upload/DocumentUpload';
+import { DocumentsList } from '../documents/DocumentsList';
+import { Link } from 'react-router-dom';
+import { Users } from 'lucide-react';
 const AdminDashboard: React.FC = () => {
   const { activeProject } = useProject();
   const queryClient = useQueryClient();
@@ -12,14 +15,7 @@ const AdminDashboard: React.FC = () => {
   const { data: documents = [], isLoading: docsLoading } = useQuery({
     queryKey: ['documents', projectId, 'pending_approval'],
     queryFn: async () => {
-      try {
-        return await apiFetch(`/v1/projects/${projectId}/documents?status=pending_approval`);
-      } catch (e) {
-        console.warn('API failed, using mock data for pending documents', e);
-        return [
-          { document_id: 'doc-1', filename: 'Financial_Q3.pdf', status: 'pending_approval', uploaded_at: new Date().toISOString() },
-        ];
-      }
+      return await apiFetch(`/v1/projects/${projectId}/documents?status=pending_approval`);
     },
     enabled: !!projectId && activeProject?.role === 'admin',
   });
@@ -27,15 +23,7 @@ const AdminDashboard: React.FC = () => {
   const { data: members = [], isLoading: membersLoading } = useQuery({
     queryKey: ['members', projectId],
     queryFn: async () => {
-      try {
-        return await apiFetch(`/v1/projects/${projectId}/members`);
-      } catch (e) {
-        console.warn('API failed, using mock data for members', e);
-        return [
-          { user_id: 'user-1', role: 'admin', joined_at: new Date().toISOString() },
-          { user_id: 'user-2', role: 'member', joined_at: new Date().toISOString() },
-        ];
-      }
+      return await apiFetch(`/v1/projects/${projectId}/members`);
     },
     enabled: !!projectId && activeProject?.role === 'admin',
   });
@@ -140,38 +128,31 @@ const AdminDashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Member Management */}
-        <div className="border rounded-lg p-5 bg-card shadow-sm flex flex-col">
-          <h3 className="font-semibold text-lg mb-4 border-b pb-2">Member Management</h3>
-          {membersLoading ? (
-            <div className="text-sm text-muted-foreground animate-pulse">Loading members...</div>
-          ) : members.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-4 text-center">No members found.</div>
-          ) : (
-            <ul className="space-y-3 flex-1 overflow-auto">
-              {members.map((member: any) => (
-                <li
-                  key={member.user_id}
-                  className="flex justify-between items-center p-3 bg-muted/50 rounded-md border"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs uppercase">
-                      {(member.email || member.user_id || 'U')[0]}
-                    </div>
-                    <span className="font-medium text-sm">{member.email ?? member.user_id}</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-md uppercase font-medium">
-                      {member.role}
-                    </span>
-                    <button className="text-xs border px-3 py-1.5 rounded-md hover:bg-accent font-medium">
-                      Edit Role
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+        {/* Member Management Link */}
+        <div className="border rounded-lg p-5 bg-card shadow-sm flex flex-col justify-center items-center text-center">
+          <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4">
+            <Users className="w-6 h-6" />
+          </div>
+          <h3 className="font-semibold text-lg mb-2">Member Management</h3>
+          <p className="text-sm text-muted-foreground mb-6 max-w-[250px]">
+            Manage project access, invite new users, and update roles.
+          </p>
+          <Link
+            to="/members"
+            className="px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 font-medium rounded-md text-sm transition-colors"
+          >
+            Go to Members
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-6 border-t mt-8">
+        <div className="lg:col-span-1">
+          <h3 className="text-lg font-semibold mb-4">Upload New Document</h3>
+          <DocumentUpload />
+        </div>
+        <div className="lg:col-span-2">
+          <DocumentsList />
         </div>
       </div>
     </div>

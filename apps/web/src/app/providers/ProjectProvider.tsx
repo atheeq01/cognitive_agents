@@ -30,14 +30,7 @@ const ProjectContext = createContext<ProjectContextType>({
   isCreating: false,
 });
 
-const DEV_MOCK_PROJECTS: Project[] = [
-  {
-    project_id: 'mock-project-1',
-    name: 'Demo Project',
-    description: 'Auto-created dev project',
-    role: 'admin',
-  },
-];
+
 
 export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeProject, setActiveProject] = useState<Project | null>(null);
@@ -51,11 +44,6 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const data = await apiFetch('/v1/projects');
         return data;
       } catch (e) {
-        // In dev mode without API running, fall back to mock data so the UI is functional
-        if (import.meta.env.DEV) {
-          console.warn('[Dev] Projects API unreachable — using mock project data.', e);
-          return DEV_MOCK_PROJECTS;
-        }
         throw e;
       }
     },

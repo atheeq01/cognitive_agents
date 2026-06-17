@@ -9,7 +9,7 @@ export const useJobStatus = () => {
   useEffect(() => {
     if (!activeProject) return;
 
-    const projectId = activeProject.project_id || activeProject.id;
+    const projectId = activeProject.project_id;
     if (!projectId) return;
     
     const unsubscribe = subscribeToProjectJobs(projectId, (updatedJobs) => {

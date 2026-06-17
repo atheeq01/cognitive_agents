@@ -6,9 +6,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from app.core.config import settings
+
 # Initialize Firebase app - assumes default credential from GCP/Emulator
 try:
-    firebase_admin.initialize_app()
+    if settings.FIREBASE_PROJECT_ID:
+        firebase_admin.initialize_app(options={'projectId': settings.FIREBASE_PROJECT_ID})
+    else:
+        firebase_admin.initialize_app()
 except ValueError:
     pass # App already initialized
 

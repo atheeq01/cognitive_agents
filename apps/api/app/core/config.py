@@ -5,8 +5,8 @@ class Settings(BaseSettings):
     # Application Settings
     ENVIRONMENT: str = "local"
     DEBUG: bool = True
-    PROJECT_NAME: str = "OmniMind v2 API"
-    API_V1_STR: str = "/api/v1"
+    PROJECT_NAME: str
+    API_V1_STR: str
 
     # Database connections
     DATABASE_URL: str
@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     GEMINI_TEXT_MODEL: str
     GEMINI_CHAT_MODEL: str
     GEMINI_EMBEDDING_MODEL: str
+    GOOGLE_API_KEY : str
 
     model_config = SettingsConfigDict(
         env_file=".env",

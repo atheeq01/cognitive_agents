@@ -6,10 +6,11 @@ from app.db.session import engine
 from app.models.user import User
 from app.models.project import Project
 from app.models.project_member import ProjectMember
+from app.models.project_invitation import ProjectInvitation
 from app.models.document import Document
 
 # Suppress linter warnings for "unused" imports
-__models__ = [User, Project, ProjectMember, Document]
+__models__ = [User, Project, ProjectMember, ProjectInvitation, Document]
 
 async def init_models():
     async with engine.begin() as conn:
