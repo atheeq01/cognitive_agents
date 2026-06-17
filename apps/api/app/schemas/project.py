@@ -24,5 +24,6 @@ class ProjectResponse(ProjectBase):
     project_id: UUID
     created_by: UUID
     created_at: datetime
+    role: str | None = None
     
     model_config = ConfigDict(from_attributes=True)

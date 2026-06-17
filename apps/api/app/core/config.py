@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     PUBSUB_EMULATOR_HOST: str | None = None
     GCS_BUCKET_NAME: str = "omnimind-documents"
 
+    # Gemini Models
+    GEMINI_TEXT_MODEL: str
+    GEMINI_CHAT_MODEL: str
+    GEMINI_EMBEDDING_MODEL: str
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

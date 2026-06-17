@@ -10,7 +10,7 @@ class CandidateSelector:
     def __init__(self):
         self.mock_mode = False
         try:
-            self.embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+            self.embeddings = GoogleGenerativeAIEmbeddings(model=settings.GEMINI_EMBEDDING_MODEL)
         except Exception as e:
             logger.warning(f"Failed to initialize Gemini Embeddings for CandidateSelector. Running in mock mode: {e}")
             self.mock_mode = True

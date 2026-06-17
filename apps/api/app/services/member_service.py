@@ -9,6 +9,13 @@ from app.schemas.member import MemberInvite
 
 class MemberService:
     @staticmethod
+    async def list_members(db: AsyncSession, project_id: UUID) -> list[ProjectMember]:
+        result = await db.execute(
+            select(ProjectMember).where(ProjectMember.project_id == project_id)
+        )
+        return result.scalars().all()
+
+    @staticmethod
     async def add_member(db: AsyncSession, project_id: UUID, invite: MemberInvite, invited_by: UUID) -> ProjectMember:
         result = await db.execute(select(User).where(User.email == invite.email))
         target_user = result.scalars().first()

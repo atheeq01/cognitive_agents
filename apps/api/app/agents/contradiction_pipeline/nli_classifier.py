@@ -25,7 +25,7 @@ class NLIClassifier:
         self.mock_mode = False
         try:
             self.llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
+                model=settings.GEMINI_TEXT_MODEL,
                 temperature=0.0,
             ).with_structured_output(NLIResult)
         except Exception as e:

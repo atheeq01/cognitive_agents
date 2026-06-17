@@ -1,6 +1,7 @@
 import logging
 from pydantic import BaseModel, Field
 from langchain_google_genai import ChatGoogleGenerativeAI
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,7 @@ class VerificationPass:
         try:
             # We use a fresh LLM instance to ensure completely clean context
             self.llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
+                model=settings.GEMINI_TEXT_MODEL,
                 temperature=0.0,
             ).with_structured_output(VerificationResult)
         except Exception as e:

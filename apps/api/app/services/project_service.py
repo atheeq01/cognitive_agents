@@ -44,3 +44,16 @@ class ProjectService:
         project = await ProjectService.get_project(db, project_id)
         await db.delete(project)
         await db.commit()
+
+    @staticmethod
+    async def get_user_projects(db: AsyncSession, user_id: UUID) -> list[Project]:
+        result = await db.execute(
+            select(Project, ProjectMember.role)
+            .join(ProjectMember, Project.project_id == ProjectMember.project_id)
+            .where(ProjectMember.user_id == user_id)
+        )
+        projects = []
+        for p, role in result.all():
+            p.role = role
+            projects.append(p)
+        return projects

@@ -1,31 +1,17 @@
 import logging
 from typing import List, Optional
-from pydantic import BaseModel, Field
 from langchain_google_genai import ChatGoogleGenerativeAI
 from app.core.config import settings
+from app.schemas.claim import Claim, ModalityContext, ClaimExtractorResponse
 
 logger = logging.getLogger(__name__)
-
-class ModalityContext(BaseModel):
-    modality: str = Field(description="The source modality: pdf, image, audio, docx, etc.")
-    speaker_id: Optional[str] = Field(None, description="The speaker ID if modality is audio")
-    timestamp: Optional[str] = Field(None, description="The timestamp or page number of the claim")
-
-class Claim(BaseModel):
-    claim_id: str = Field(description="A unique ID for this claim")
-    fact: str = Field(description="The atomic statement or fact extracted from the text")
-    source_span: str = Field(description="The exact quote from the text that proves this claim")
-    modality_context: ModalityContext = Field(description="The modality context from which the claim was extracted")
-
-class ClaimExtractorResponse(BaseModel):
-    claims: List[Claim]
 
 class ClaimExtractor:
     def __init__(self):
         self.mock_mode = False
         try:
             self.llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
+                model=settings.GEMINI_TEXT_MODEL,
                 temperature=0.0,
             ).with_structured_output(ClaimExtractorResponse)
         except Exception as e:

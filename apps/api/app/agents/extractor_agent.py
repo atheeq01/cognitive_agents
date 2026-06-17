@@ -1,19 +1,10 @@
 import logging
 from typing import List, Optional
-from pydantic import BaseModel, Field
 from langchain_google_genai import ChatGoogleGenerativeAI
 from app.core.config import settings
+from app.schemas.claim import Claim, ClaimExtractorResponse as ExtractorResponse
 
 logger = logging.getLogger(__name__)
-
-class Claim(BaseModel):
-    claim_id: str = Field(description="A unique ID for this claim")
-    fact: str = Field(description="The atomic statement or fact extracted from the text")
-    source_span: str = Field(description="The exact quote from the text that proves this claim")
-    speaker_id: Optional[str] = Field(None, description="The person who stated this claim, if applicable")
-
-class ExtractorResponse(BaseModel):
-    claims: List[Claim]
 
 class ExtractorAgent:
     def __init__(self):
@@ -21,9 +12,8 @@ class ExtractorAgent:
         # For local testing, we fallback to a mock response if initialization fails
         self.mock_mode = False
         try:
-            # We use gemini-1.5-flash as it's the fastest and most efficient for structured extraction
             self.llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
+                model=settings.GEMINI_TEXT_MODEL,
                 temperature=0.0,
             ).with_structured_output(ExtractorResponse)
         except Exception as e:

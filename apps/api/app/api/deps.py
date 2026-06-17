@@ -19,13 +19,10 @@ async def get_current_user(
     if not email:
         raise HTTPException(status_code=400, detail="Token missing email")
     
-    # In a real app we'd fetch from DB and auto-provision if missing.
-    # For now, simplistic fetch:
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalars().first()
     
     if not user:
-        # Auto-provision logic here (mocked for now)
         user = User(email=email, name=token_payload.get("name"))
         db.add(user)
         await db.commit()
@@ -38,18 +35,20 @@ def require_project_role(required_roles: list[str]) -> Callable:
     Dependency generator for RBAC. Enforces that the current user
     has one of the required roles in the specified project.
     Also injects the project_id into the PostgreSQL session context for RLS.
+    
+    NOTE: This dependency uses the SAME `db` session as the route handler
+    (FastAPI de-duplicates identical Depends() calls within a request),
+    so the `SET LOCAL` RLS config will be visible to subsequent queries
+    in the handler.
     """
     async def role_checker(
         project_id: UUID = Path(...),
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
     ) -> ProjectMember:
-        # Set RLS Context FIRST before any queries on isolated tables
         await db.execute(
             text("SELECT set_config('app.project_id', :project_id, true)").bindparams(project_id=str(project_id))
         )
-        
-        # Check membership
         result = await db.execute(
             select(ProjectMember).where(
                 ProjectMember.project_id == project_id,

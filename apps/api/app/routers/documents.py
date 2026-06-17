@@ -1,6 +1,7 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, UploadFile, File, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List
 
 from app.db.session import get_db
 from app.models.project_member import ProjectMember
@@ -11,7 +12,16 @@ from app.services.document_service import DocumentService
 
 router = APIRouter(prefix="/projects/{project_id}/documents", tags=["documents"])
 
-@router.post("/", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
+@router.get("", response_model=List[DocumentResponse])
+async def list_documents(
+    project_id: UUID,
+    status: str | None = None,
+    membership: ProjectMember = Depends(require_project_role(["admin", "member", "viewer"])),
+    db: AsyncSession = Depends(get_db)
+):
+    return await DocumentService.list_documents(db, project_id, status_filter=status)
+
+@router.post("", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     project_id: UUID,
     file: UploadFile = File(...),

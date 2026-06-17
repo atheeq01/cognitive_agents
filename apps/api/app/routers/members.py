@@ -1,6 +1,7 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List
 
 from app.db.session import get_db
 from app.models.project_member import ProjectMember
@@ -11,7 +12,15 @@ from app.services.member_service import MemberService
 
 router = APIRouter(prefix="/projects/{project_id}/members", tags=["members"])
 
-@router.post("/", response_model=MemberResponse, status_code=status.HTTP_201_CREATED)
+@router.get("", response_model=List[MemberResponse])
+async def list_members(
+    project_id: UUID,
+    membership: ProjectMember = Depends(require_project_role(["admin", "member", "viewer"])),
+    db: AsyncSession = Depends(get_db)
+):
+    return await MemberService.list_members(db, project_id)
+
+@router.post("", response_model=MemberResponse, status_code=status.HTTP_201_CREATED)
 async def add_member(
     project_id: UUID,
     invite: MemberInvite,

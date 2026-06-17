@@ -1,3 +1,4 @@
+import asyncio
 import json
 from google.cloud import pubsub_v1
 import logging
@@ -20,7 +21,12 @@ class PubSubService:
         }
         
         data = json.dumps(payload).encode("utf-8")
-        future = self.publisher.publish(self.topic_path, data)
-        future.result()
+        loop = asyncio.get_event_loop()
+        try:
+            future = self.publisher.publish(self.topic_path, data)
+            await loop.run_in_executor(None, future.result)
+        except Exception as e:
+            logger.error(f"Failed to publish Pub/Sub message: {e}")
+            raise
 
 pubsub_service = PubSubService()

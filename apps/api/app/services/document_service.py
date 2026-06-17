@@ -1,8 +1,10 @@
 import uuid
+import asyncio
 import magic
 from fastapi import UploadFile, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from typing import Optional
 
 from app.models.document import Document, DocumentStatus
 from app.models.project import Project
@@ -13,6 +15,21 @@ MAX_FILE_SIZE = 50 * 1024 * 1024 # 50 MB
 ALLOWED_MIME_TYPES = ["application/pdf", "text/plain", "audio/mpeg", "image/jpeg", "image/png"]
 
 class DocumentService:
+    @staticmethod
+    async def list_documents(db: AsyncSession, project_id: uuid.UUID, status_filter: Optional[str] = None) -> list[Document]:
+        query = select(Document).where(Document.project_id == project_id)
+        if status_filter:
+            try:
+                status_enum = DocumentStatus(status_filter)
+                query = query.where(Document.status == status_enum)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid status filter: {status_filter}"
+                )
+        result = await db.execute(query)
+        return result.scalars().all()
+
     @staticmethod
     async def upload_document(db: AsyncSession, project_id: uuid.UUID, file: UploadFile, user_id: uuid.UUID) -> Document:
         content = await file.read()

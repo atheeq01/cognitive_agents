@@ -27,7 +27,8 @@ async def verify_firebase_token(cred: HTTPAuthorizationCredentials) -> dict:
         return {"email": email, "name": "Mock User"}
 
     try:
-        decoded_token = auth.verify_id_token(cred.credentials)
+        # Use the stripped token (without 'Bearer ' prefix)
+        decoded_token = auth.verify_id_token(token)
         return decoded_token
     except Exception as e:
         logger.error(f"Firebase token verification failed: {e}")

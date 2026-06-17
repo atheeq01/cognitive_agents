@@ -2,14 +2,18 @@
   "name": "omnimind-v2",
   "version": "2.0.0",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev:web": "pnpm --filter web dev",
-    "build:web": "pnpm --filter web build",
-    "lint": "pnpm --recursive run lint",
-    "typecheck": "pnpm --recursive run typecheck"
+    "dev:web": "npm run dev -w web",
+    "build:web": "npm run build -w web",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "engines": {
     "node": ">=20.0.0",
-    "pnpm": ">=9.0.0"
+    "npm": ">=10.0.0"
   }
 }

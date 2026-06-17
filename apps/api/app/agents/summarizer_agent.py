@@ -13,7 +13,7 @@ class SummarizerAgent:
         self.mock_mode = False
         try:
             self.llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
+                model=settings.GEMINI_TEXT_MODEL,
                 temperature=0.3, # Slightly higher temperature for summary generation
             ).with_structured_output(SummaryResponse)
         except Exception as e:

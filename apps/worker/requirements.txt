@@ -1,7 +1,22 @@
 fastapi>=0.111.0
 uvicorn[standard]>=0.30.1
 pydantic>=2.7.4
+pydantic-settings>=2.3.4
+
+# Google Cloud dependencies
+google-cloud-storage>=2.16.0
+google-cloud-pubsub>=2.21.1
+google-cloud-documentai>=2.24.0
+google-cloud-speech>=2.26.0
+firebase-admin>=6.5.0
+
+# ML / AI
 pinecone>=5.0.0
 langchain>=0.2.0
-langchain-google-genai>=1.0.0
+google-genai>=1.0.0
+langchain-text-splitters>=0.2.0
+langchain-core>=0.2.0
 tiktoken>=0.7.0
+
+# Utilities
+python-magic>=0.4.27

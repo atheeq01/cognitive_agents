@@ -1,3 +1,4 @@
+import asyncio
 from google.cloud import storage
 import logging
 from app.core.config import settings
@@ -12,9 +13,13 @@ class StorageService:
     async def upload_document(self, project_id: str, document_id: str, filename: str, content: bytes) -> str:
         gcs_path = f"projects/{project_id}/documents/{document_id}/{filename}"
         
-        bucket = self.client.bucket(self.bucket_name)
-        blob = bucket.blob(gcs_path)
-        blob.upload_from_string(content)
+        loop = asyncio.get_event_loop()
+        def _upload():
+            bucket = self.client.bucket(self.bucket_name)
+            blob = bucket.blob(gcs_path)
+            blob.upload_from_string(content)
+        
+        await loop.run_in_executor(None, _upload)
         return gcs_path
 
 storage_service = StorageService()
