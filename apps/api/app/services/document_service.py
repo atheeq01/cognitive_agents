@@ -1,5 +1,4 @@
 import uuid
-import asyncio
 import magic
 from fastapi import UploadFile, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,7 +46,7 @@ class DocumentService:
         if not project_obj:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
             
-        doc_status = DocumentStatus.PENDING_APPROVAL if project_obj.upload_approval_required else DocumentStatus.APPROVED
+        doc_status = DocumentStatus.APPROVED
         
         document_id = uuid.uuid4()
         gcs_path = await storage_service.upload_document(str(project_id), str(document_id), file.filename, content)
@@ -90,3 +89,61 @@ class DocumentService:
         
         await pubsub_service.publish_document_approved(str(project_id), str(document_id), document.gcs_path)
         return document
+
+    @staticmethod
+    async def delete_document(db: AsyncSession, project_id: uuid.UUID, document_id: uuid.UUID) -> None:
+        import logging
+        logger = logging.getLogger(__name__)
+
+        result = await db.execute(select(Document).where(
+            Document.project_id == project_id,
+            Document.document_id == document_id
+        ))
+        document = result.scalars().first()
+        if not document:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+        gcs_path = document.gcs_path
+
+        # 1. Delete from PostgreSQL
+        await db.delete(document)
+        await db.commit()
+
+        # 2. Delete the Firestore job record so Intelligence tab updates
+        try:
+            import firebase_admin
+            from firebase_admin import firestore as fb_firestore
+            import os
+
+            if not firebase_admin._apps:
+                project = os.environ.get("FIREBASE_PROJECT_ID", "omnimind-499716")
+                firebase_admin.initialize_app(options={"projectId": project})
+
+            fs_client = fb_firestore.client()
+            job_ref = (
+                fs_client.collection("projects")
+                .document(str(project_id))
+                .collection("jobs")
+                .document(str(document_id))
+            )
+            job_ref.delete()
+            logger.info(f"[DocumentService] Deleted Firestore job | project={project_id} | document={document_id}")
+        except Exception as e:
+            logger.warning(f"[DocumentService] Failed to delete Firestore job (non-fatal): {e}")
+
+        # 3. Delete the file from GCS
+        try:
+            if gcs_path:
+                await storage_service.delete_document(gcs_path)
+                logger.info(f"[DocumentService] Deleted GCS file | path={gcs_path}")
+        except Exception as e:
+            logger.warning(f"[DocumentService] Failed to delete GCS file (non-fatal): {e}")
+
+        # 4. Trigger Project Report Refresh to remove the document from the intelligence report
+        try:
+            import asyncio
+            from app.services.project_service import ProjectService
+            logger.info(f"[DocumentService] Triggering report refresh for project {project_id} after deletion of document {document_id}")
+            asyncio.create_task(ProjectService.trigger_project_report_refresh(project_id))
+        except Exception as e:
+            logger.warning(f"[DocumentService] Failed to trigger report refresh (non-fatal): {e}")

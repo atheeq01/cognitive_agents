@@ -21,6 +21,34 @@ class PubSubService:
             "action": "process"
         }
         
+        if settings.ENVIRONMENT == "local":
+            import urllib.request
+            import base64
+            
+            pubsub_message = {
+                "message": {
+                    "data": base64.b64encode(json.dumps(payload).encode("utf-8")).decode("utf-8"),
+                    "messageId": "mock-local-id"
+                }
+            }
+            
+            def _send():
+                try:
+                    req = urllib.request.Request(
+                        "http://localhost:8001/ingest/",
+                        data=json.dumps(pubsub_message).encode("utf-8"),
+                        headers={"Content-Type": "application/json"}
+                    )
+                    # Increase timeout to 300 seconds to allow the worker's synchronous pipeline to finish
+                    urllib.request.urlopen(req, timeout=300)
+                    logger.info(f"[LOCAL DEV] Directly pushed event to local worker at :8001 for {document_id}")
+                except Exception as e:
+                    logger.error(f"[LOCAL DEV] Failed to push to local worker (is it running on port 8001?): {e}")
+            
+            loop = asyncio.get_event_loop()
+            loop.run_in_executor(None, _send)
+            return
+            
         data = json.dumps(payload).encode("utf-8")
         loop = asyncio.get_event_loop()
         try:

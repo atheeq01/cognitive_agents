@@ -40,12 +40,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { data: fetchedProjects, isLoading, error } = useQuery<Project[]>({
     queryKey: ['projects'],
     queryFn: async () => {
-      try {
-        const data = await apiFetch('/v1/projects');
-        return data;
-      } catch (e) {
-        throw e;
-      }
+      return await apiFetch('/v1/projects');
     },
     enabled: !!user,
   });
@@ -63,13 +58,13 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     },
   });
 
-  const projects = fetchedProjects ?? [];
+  const projects = fetchedProjects || [];
 
   useEffect(() => {
-    if (!activeProject && projects.length > 0) {
-      setActiveProject(projects[0]);
+    if (!activeProject && fetchedProjects?.length) {
+      setActiveProject(fetchedProjects[0]);
     }
-  }, [projects, activeProject]);
+  }, [fetchedProjects, activeProject]);
 
   const createProject = async (name: string, description?: string) => {
     await createMutation.mutateAsync({ name, description });

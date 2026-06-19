@@ -39,3 +39,12 @@ async def approve_document(
     db: AsyncSession = Depends(get_db)
 ):
     return await DocumentService.approve_document(db, project_id, document_id)
+
+@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_document(
+    project_id: UUID,
+    document_id: UUID,
+    membership: ProjectMember = Depends(require_project_role(["admin", "member"])),
+    db: AsyncSession = Depends(get_db)
+):
+    await DocumentService.delete_document(db, project_id, document_id)

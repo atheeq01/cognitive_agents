@@ -20,3 +20,4 @@ tiktoken>=0.7.0
 
 # Utilities
 python-magic>=0.4.27
+pymupdf>=1.24.0

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createBrowserRouter, Outlet } from 'react-router-dom';
 import React, { Suspense } from 'react';
 import { ProjectSwitcher } from '../features/project-switcher/ProjectSwitcher';
@@ -6,23 +7,31 @@ import { Login } from '../features/auth/Login';
 import { AuthenticatedRoute } from '../features/auth/AuthenticatedRoute';
 
 import { UploadQueueWidget } from '../features/upload/UploadQueueWidget';
-import { NavLink } from 'react-router-dom';
-import { Moon, Sun } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { Moon, Sun, LogOut } from 'lucide-react';
+import { auth } from '../lib/firebase';
 
 // Lazy loading features for code splitting
 const AdminDashboard = React.lazy(() => import('../features/admin-dashboard/AdminDashboard'));
 const ChatPage = React.lazy(() => import('../features/chat/ChatPage').then(m => ({ default: m.ChatPage })));
 const MemberManagementPage = React.lazy(() => import('../features/members/MemberManagementPage'));
 const AcceptInvitationPage = React.lazy(() => import('../features/members/AcceptInvitationPage'));
+const ProjectReportPage = React.lazy(() => import('../pages/ProjectReportPage').then(m => ({ default: m.ProjectReportPage })));
 import { HomePage } from '../features/home/HomePage';
 // Other lazy components can be added here
 
 const AppLayout = () => {
   const [isDark, setIsDark] = React.useState(false);
+  const navigate = useNavigate();
 
   React.useEffect(() => {
     setIsDark(document.documentElement.classList.contains('dark'));
   }, []);
+
+  const handleSignOut = async () => {
+    await auth.signOut();
+    navigate('/login');
+  };
 
   const toggleTheme = () => {
     document.documentElement.classList.toggle('dark');
@@ -51,7 +60,7 @@ const AppLayout = () => {
             </NavLink>
           </nav>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button 
             onClick={toggleTheme}
             className="p-2 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
@@ -60,6 +69,13 @@ const AppLayout = () => {
             {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
           <ProjectSwitcher />
+          <button 
+            onClick={handleSignOut}
+            className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+            title="Sign out"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
       </header>
       <main className="flex-1 p-4">
@@ -99,6 +115,10 @@ export const router = createBrowserRouter([
       {
         path: 'admin/*',
         element: <AdminDashboard />,
+      },
+      {
+        path: 'report',
+        element: <ProjectReportPage />,
       },
       {
         path: 'chat',

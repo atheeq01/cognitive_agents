@@ -1,4 +1,3 @@
-import uuid
 from uuid import UUID
 import secrets
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +7,7 @@ from fastapi import HTTPException
 from app.models.project_member import ProjectMember
 from app.models.user import User
 from app.models.project_invitation import ProjectInvitation
-from app.schemas.member import MemberInvite, AcceptInviteRequest
+from app.schemas.member import MemberInvite
 from app.services.pubsub_service import pubsub_service
 
 class MemberService:

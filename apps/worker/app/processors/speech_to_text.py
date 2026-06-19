@@ -1,4 +1,6 @@
 import logging
+import os
+import asyncio
 from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -6,23 +8,22 @@ logger = logging.getLogger(__name__)
 class SpeechToTextProcessor:
     def __init__(self):
         self.mock_mode = False
+        self.model = os.getenv("GEMINI_AUDIO_MODEL", os.getenv("GEMINI_TEXT_MODEL", "gemini-3.5-flash"))
         try:
-            from google.cloud import speech_v2
-            self.client = speech_v2.SpeechClient()
+            from google import genai
         except Exception as e:
-            logger.warning(f"Failed to initialize Google Speech-to-Text V2. Running in mock mode: {e}")
+            logger.warning(f"Failed to import google-genai SDK. Running in mock mode: {e}")
             self.mock_mode = True
 
     async def process_audio(self, file_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         """
-        Uses Google Cloud Speech-to-Text V2 API with Speaker Diarization.
-        Extracts transcripts and assigns a speaker_id to each utterance.
+        Uses Gemini to transcribe audio or video files.
         """
         if self.mock_mode:
-            logger.info(f"[MOCK SPEECH] Processing {mime_type} audio of size {len(file_bytes)} bytes")
+            logger.info(f"[MOCK SPEECH] Processing {mime_type} media of size {len(file_bytes)} bytes")
             return {
                 "raw_text": "SPEAKER_1: Hello.\nSPEAKER_2: Hi, how are you?",
-                "modality": "audio",
+                "modality": "audio" if mime_type.startswith("audio/") else "video",
                 "audio_meta": {
                     "utterances": [
                         {"speaker_id": "SPEAKER_1", "text": "Hello.", "start_time": "0.0s"},
@@ -32,20 +33,39 @@ class SpeechToTextProcessor:
             }
 
         try:
-            # In a real implementation:
-            # 1. Upload audio to GCS
-            # 2. Configure recognition config with diarization enabled
-            # 3. Process and parse the words and speaker tags
-            
+            from google import genai
+            from google.genai import types
+
+            client = genai.Client()
+            prompt = (
+                "Please transcribe the speech in this media file exactly as spoken. "
+                "If there are multiple speakers, label them as Speaker 1, Speaker 2, etc. "
+                "and preserve the dialogue structure."
+            )
+
+            loop = asyncio.get_event_loop()
+            def _call():
+                return client.models.generate_content(
+                    model=self.model,
+                    contents=[
+                        types.Part.from_bytes(data=file_bytes, mime_type=mime_type),
+                        prompt,
+                    ],
+                )
+
+            response = await loop.run_in_executor(None, _call)
+            extracted_text = response.text or ""
+
             return {
-                "raw_text": "Live transcript from Speech-to-Text V2 API.",
-                "modality": "audio",
+                "raw_text": extracted_text,
+                "modality": "audio" if mime_type.startswith("audio/") else "video",
                 "audio_meta": {
                     "utterances": []
                 }
             }
         except Exception as e:
-            logger.error(f"Failed to process audio with Speech-to-Text: {e}")
+            logger.error(f"Failed to process media with Gemini: {e}")
             raise
 
 speech_to_text_processor = SpeechToTextProcessor()
+

@@ -1,6 +1,14 @@
+import warnings
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Suppress harmless aiohttp task cancellation warnings from Langchain / Google GenAI SDKs
+warnings.filterwarnings("ignore", message="coroutine 'ClientResponse.json' was never awaited", category=RuntimeWarning)
+
+# Suppress noisy google_genai logs
+logging.getLogger("google_genai").setLevel(logging.WARNING)
 
 from app.core.config import settings
 from app.routers import projects, members, documents, chat, invitations
@@ -30,7 +38,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

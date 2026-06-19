@@ -1,5 +1,5 @@
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import AnyHttpUrl
 
 class Settings(BaseSettings):
     # Application Settings
@@ -21,7 +21,12 @@ class Settings(BaseSettings):
     FIRESTORE_EMULATOR_HOST: str | None = None
     FIREBASE_PROJECT_ID: str | None = None
     PUBSUB_EMULATOR_HOST: str | None = None
-    GCS_BUCKET_NAME: str = "omnimind-documents"
+    GCS_BUCKET_NAME: str
+
+    # Document AI
+    DOCAI_PROJECT_ID: str | None = None
+    DOCAI_LOCATION: str | None = "us"
+    DOCAI_PROCESSOR_ID: str | None = None
 
     # Gemini Models
     GEMINI_TEXT_MODEL: str
@@ -38,8 +43,10 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-import os
+
 if settings.PUBSUB_EMULATOR_HOST:
     os.environ["PUBSUB_EMULATOR_HOST"] = settings.PUBSUB_EMULATOR_HOST
 if settings.FIRESTORE_EMULATOR_HOST:
     os.environ["FIRESTORE_EMULATOR_HOST"] = settings.FIRESTORE_EMULATOR_HOST
+if settings.GOOGLE_API_KEY:
+    os.environ["GOOGLE_API_KEY"] = settings.GOOGLE_API_KEY

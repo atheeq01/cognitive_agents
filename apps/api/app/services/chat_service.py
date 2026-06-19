@@ -1,12 +1,11 @@
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from pydantic import BaseModel
 
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 
 from app.core.config import settings
 
@@ -88,8 +87,9 @@ class ChatService:
                     embedding=self.embeddings,
                     namespace=str(project_id),
                 )
+                import asyncio
                 retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
-                docs = await retriever.ainvoke(message)
+                docs = await asyncio.to_thread(retriever.invoke, message)
 
             # Format retrieved documents into a context string
             context_parts = []

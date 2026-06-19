@@ -1,8 +1,8 @@
 import logging
-from typing import Literal, Optional, List
+import time
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
-from langchain_google_genai import ChatGoogleGenerativeAI
-from app.core.config import settings
+from app.agents.pipeline import BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -20,25 +20,18 @@ class NLIResult(BaseModel):
         None, description="The exact quote from Claim B that supports the contradiction. REQUIRED if CONTRADICTION."
     )
 
-class NLIClassifier:
+class NLIClassifier(BaseAgent):
     def __init__(self):
+        super().__init__("NLIClassifier")
         self.mock_mode = False
-        try:
-            self.llm = ChatGoogleGenerativeAI(
-                model=settings.GEMINI_TEXT_MODEL,
-                temperature=0.0,
-            ).with_structured_output(NLIResult)
-        except Exception as e:
-            logger.warning(f"Failed to initialize Gemini for NLIClassifier. Running in mock mode: {e}")
-            self.mock_mode = True
 
-    async def classify_pair(self, claim_a: dict, claim_b: dict) -> NLIResult:
+    async def classify_pair(self, claim_a: dict | str, claim_b: dict | str) -> NLIResult:
         """
         Stage 3: Cross-modal Natural Language Inference.
         Evaluates two claims and determines if they entail each other, are neutral, or contradict.
         """
         if self.mock_mode:
-            logger.info(f"[MOCK NLI] Classifying pair")
+            logger.info("[MOCK NLI] Classifying pair")
             return NLIResult(
                 relation="CONTRADICTION",
                 conflict_type="factual",
@@ -46,38 +39,74 @@ class NLIClassifier:
                 evidence_b="Claim B says Y"
             )
 
+        # Handle both string and dict inputs
+        def _extract_context(c):
+            if isinstance(c, str):
+                return {"modality": "unknown", "speaker_id": "N/A", "fact": c, "source_span": ""}
+            
+            fact = c.get("fact", c.get("text", ""))
+            
+            loc = c.get("source_location", {})
+            if isinstance(loc, str):
+                import json
+                try:
+                    loc = json.loads(loc)
+                except:
+                    loc = {}
+                    
+            modality = loc.get("modality", "unknown") if isinstance(loc, dict) else "unknown"
+            speaker_id = loc.get("speaker_id", "N/A") if isinstance(loc, dict) else "N/A"
+            source_span = loc.get("exact_quote", "") if isinstance(loc, dict) else ""
+            
+            return {
+                "modality": modality,
+                "speaker_id": speaker_id,
+                "fact": fact,
+                "source_span": source_span
+            }
+
+        ctx_a = _extract_context(claim_a)
+        ctx_b = _extract_context(claim_b)
+
         # Build context aware prompt
         prompt = f"""
         You are Stage 3 of an intelligence pipeline evaluating cross-modal claims.
         Determine the logical relationship between Claim A and Claim B.
 
         CLAIM A CONTEXT:
-        Modality: {claim_a.get('modality', 'unknown')}
-        Speaker: {claim_a.get('speaker_id', 'N/A')}
-        Statement: {claim_a.get('fact', '')}
-        Source Quote: {claim_a.get('source_span', '')}
+        Modality: {ctx_a['modality']}
+        Speaker: {ctx_a['speaker_id']}
+        Statement: {ctx_a['fact']}
+        Source Quote: {ctx_a['source_span']}
 
         CLAIM B CONTEXT:
-        Modality: {claim_b.get('metadata', {}).get('modality', 'unknown')}
-        Speaker: {claim_b.get('metadata', {}).get('speaker_id', 'N/A')}
-        Statement: {claim_b.get('metadata', {}).get('fact', '')}
-        Source Quote: {claim_b.get('metadata', {}).get('source_span', '')}
+        Modality: {ctx_b['modality']}
+        Speaker: {ctx_b['speaker_id']}
+        Statement: {ctx_b['fact']}
+        Source Quote: {ctx_b['source_span']}
 
         INSTRUCTIONS:
         1. Classify the relationship as ENTAILMENT, NEUTRAL, or CONTRADICTION.
-        2. If CONTRADICTION, you MUST provide the exact `evidence_a` and `evidence_b` quotes from the Source Quotes above.
+        2. If CONTRADICTION, you MUST provide the exact `evidence_a` and `evidence_b` quotes from the Source Quotes above. If source quotes are empty, use the Statement.
         3. Note: Two different speakers can have opposing views legitimately. If Speaker A disagrees with Speaker B, that is still a CONTRADICTION that must be flagged.
         """
 
-        try:
-            result = await self.llm.ainvoke(prompt)
+        result = await self._execute_with_fallback(
+            prompt=prompt,
+            project_id="nli_classifier",
+            structured_output_type=NLIResult,
+            temperature=0.0,
+            timeout=20.0,
+            llm_timeout=15,
+        )
+
+        if result is not None:
             # Hard validation
             if result.relation == "CONTRADICTION" and (not result.evidence_a or not result.evidence_b):
                 logger.error("LLM failed to provide evidence for CONTRADICTION")
                 result.relation = "NEUTRAL" # Fail safe
             return result
-        except Exception as e:
-            logger.error(f"Failed to classify NLI: {e}")
-            raise
+
+        return NLIResult(relation="NEUTRAL")
 
 nli_classifier = NLIClassifier()

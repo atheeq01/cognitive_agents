@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useProject } from '../../app/providers/ProjectProvider';
-import { auth } from '../../lib/firebase';
-import { useNavigate } from 'react-router-dom';
 
 export const ProjectSwitcher: React.FC = () => {
   const { activeProject, setActiveProject, projects, isLoading, createProject, isCreating } = useProject();
@@ -9,12 +7,6 @@ export const ProjectSwitcher: React.FC = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDesc, setNewProjectDesc] = useState('');
-  const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    await auth.signOut();
-    navigate('/login');
-  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,12 +137,6 @@ export const ProjectSwitcher: React.FC = () => {
               className="w-full text-left px-2 py-1.5 text-sm text-primary hover:bg-primary/10 rounded transition-colors"
             >
               + New Project
-            </button>
-            <button
-              onClick={handleSignOut}
-              className="w-full text-left px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10 rounded transition-colors"
-            >
-              Sign out
             </button>
           </div>
         </div>

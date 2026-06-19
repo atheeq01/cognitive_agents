@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Dict, Any
+from typing import List
 from pydantic import BaseModel
 
 from app.api.deps import require_project_role
@@ -15,7 +15,7 @@ class ChatRequest(BaseModel):
     message: str
     history: List[ChatMessage] = []
 
-@router.post("/")
+@router.post("")
 async def chat_with_project(
     project_id: str,
     request: ChatRequest,

@@ -1,16 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useProject } from '../../app/providers/ProjectProvider';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../lib/api';
 import { toast } from 'sonner';
 import { DocumentUpload } from '../upload/DocumentUpload';
 import { DocumentsList } from '../documents/DocumentsList';
+import { ProjectIntelligenceOverview } from '../intelligence/ProjectIntelligenceOverview';
 import { Link } from 'react-router-dom';
 import { Users } from 'lucide-react';
 const AdminDashboard: React.FC = () => {
   const { activeProject } = useProject();
   const queryClient = useQueryClient();
   const projectId = activeProject?.project_id;
+  
+  const [activeTab, setActiveTab] = useState<'overview' | 'intelligence'>('overview');
 
   const { data: documents = [], isLoading: docsLoading } = useQuery({
     queryKey: ['documents', projectId, 'pending_approval'],
@@ -20,13 +23,7 @@ const AdminDashboard: React.FC = () => {
     enabled: !!projectId && activeProject?.role === 'admin',
   });
 
-  const { data: members = [], isLoading: membersLoading } = useQuery({
-    queryKey: ['members', projectId],
-    queryFn: async () => {
-      return await apiFetch(`/v1/projects/${projectId}/members`);
-    },
-    enabled: !!projectId && activeProject?.role === 'admin',
-  });
+
 
   const approveMutation = useMutation({
     mutationFn: (docId: string) =>
@@ -79,82 +76,111 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Admin Dashboard — {activeProject.name}</h2>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Approval Queue */}
-        <div className="border rounded-lg p-5 bg-card shadow-sm flex flex-col">
-          <h3 className="font-semibold text-lg mb-4 border-b pb-2">Approval Queue</h3>
-          {docsLoading ? (
-            <div className="text-sm text-muted-foreground animate-pulse">Loading queue...</div>
-          ) : documents.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-4 text-center">
-              No documents pending approval.
-            </div>
-          ) : (
-            <ul className="space-y-3 flex-1 overflow-auto">
-              {documents.map((doc: any) => (
-                <li
-                  key={doc.document_id}
-                  className="flex justify-between items-center p-3 bg-muted/50 rounded-md border"
-                >
-                  <div>
-                    <span className="font-medium text-sm">{doc.filename}</span>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      {doc.uploaded_at
-                        ? new Date(doc.uploaded_at).toLocaleDateString()
-                        : 'Just now'}
-                    </span>
-                  </div>
-                  <div className="space-x-2 flex-shrink-0">
-                    <button
-                      onClick={() => approveMutation.mutate(doc.document_id)}
-                      disabled={approveMutation.isPending}
-                      className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:bg-primary/90 disabled:opacity-50"
-                    >
-                      Approve
-                    </button>
-                    <button 
-                      onClick={() => rejectMutation.mutate(doc.document_id)}
-                      disabled={rejectMutation.isPending}
-                      className="px-3 py-1.5 border border-destructive text-destructive rounded-md text-xs font-medium hover:bg-destructive/10 disabled:opacity-50"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Member Management Link */}
-        <div className="border rounded-lg p-5 bg-card shadow-sm flex flex-col justify-center items-center text-center">
-          <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4">
-            <Users className="w-6 h-6" />
-          </div>
-          <h3 className="font-semibold text-lg mb-2">Member Management</h3>
-          <p className="text-sm text-muted-foreground mb-6 max-w-[250px]">
-            Manage project access, invite new users, and update roles.
-          </p>
-          <Link
-            to="/members"
-            className="px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 font-medium rounded-md text-sm transition-colors"
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Admin Dashboard — {activeProject.name}</h2>
+        
+        <div className="flex space-x-2 bg-muted p-1 rounded-lg">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'overview' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
           >
-            Go to Members
-          </Link>
+            Project Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('intelligence')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'intelligence' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Intelligence
+          </button>
         </div>
       </div>
+      
+      {activeTab === 'intelligence' ? (
+        <div className="mt-8">
+          <ProjectIntelligenceOverview />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Approval Queue */}
+            <div className="border rounded-lg p-5 bg-card shadow-sm flex flex-col">
+              <h3 className="font-semibold text-lg mb-4 border-b pb-2">Approval Queue</h3>
+              {docsLoading ? (
+                <div className="text-sm text-muted-foreground animate-pulse">Loading queue...</div>
+              ) : documents.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-4 text-center">
+                  No documents pending approval.
+                </div>
+              ) : (
+                <ul className="space-y-3 flex-1 overflow-auto">
+                  {documents.map((doc: any) => (
+                    <li
+                      key={doc.document_id}
+                      className="flex justify-between items-center p-3 bg-muted/50 rounded-md border"
+                    >
+                      <div>
+                        <span className="font-medium text-sm">{doc.filename}</span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {doc.uploaded_at
+                            ? new Date(doc.uploaded_at).toLocaleDateString()
+                            : 'Just now'}
+                        </span>
+                      </div>
+                      <div className="space-x-2 flex-shrink-0">
+                        <button
+                          onClick={() => approveMutation.mutate(doc.document_id)}
+                          disabled={approveMutation.isPending}
+                          className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:bg-primary/90 disabled:opacity-50"
+                        >
+                          Approve
+                        </button>
+                        <button 
+                          onClick={() => rejectMutation.mutate(doc.document_id)}
+                          disabled={rejectMutation.isPending}
+                          className="px-3 py-1.5 border border-destructive text-destructive rounded-md text-xs font-medium hover:bg-destructive/10 disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-6 border-t mt-8">
-        <div className="lg:col-span-1">
-          <h3 className="text-lg font-semibold mb-4">Upload New Document</h3>
-          <DocumentUpload />
-        </div>
-        <div className="lg:col-span-2">
-          <DocumentsList />
-        </div>
-      </div>
+            {/* Member Management Link */}
+            <div className="border rounded-lg p-5 bg-card shadow-sm flex flex-col justify-center items-center text-center">
+              <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4">
+                <Users className="w-6 h-6" />
+              </div>
+              <h3 className="font-semibold text-lg mb-2">Member Management</h3>
+              <p className="text-sm text-muted-foreground mb-6 max-w-[250px]">
+                Manage project access, invite new users, and update roles.
+              </p>
+              <Link
+                to="/members"
+                className="px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 font-medium rounded-md text-sm transition-colors"
+              >
+                Go to Members
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-6 border-t mt-8">
+            <div className="lg:col-span-1">
+              <h3 className="text-lg font-semibold mb-4">Upload New Document</h3>
+              <DocumentUpload onUploadComplete={() => setActiveTab('intelligence')} />
+            </div>
+            <div className="lg:col-span-2">
+              <DocumentsList onSelectDocument={() => setActiveTab('intelligence')} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

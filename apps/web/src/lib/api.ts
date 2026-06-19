@@ -37,7 +37,16 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new ApiError(response.status, errorText);
+    let errorMessage = errorText;
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.detail) {
+        errorMessage = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch (e) {
+      // Ignore JSON parse errors, just use the raw text
+    }
+    throw new ApiError(response.status, errorMessage);
   }
 
   // Handle 204 No Content responses (e.g. DELETE)

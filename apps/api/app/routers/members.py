@@ -46,7 +46,18 @@ async def update_role(
     membership: ProjectMember = Depends(require_project_role(["admin"])),
     db: AsyncSession = Depends(get_db)
 ):
-    return await MemberService.update_role(db, project_id, user_id, request.role)
+    pm = await MemberService.update_role(db, project_id, user_id, request.role)
+    user = await db.get(User, user_id)
+    return {
+        "project_id": pm.project_id,
+        "user_id": pm.user_id,
+        "role": pm.role,
+        "joined_at": pm.joined_at,
+        "invited_by": pm.invited_by,
+        "email": user.email,
+        "name": user.name,
+        "avatar_url": user.avatar_url
+    }
 
 @router.delete("/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_member(

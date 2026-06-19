@@ -1,16 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useJobStatus } from './useJobStatus';
 import { type JobStatus } from '../../lib/firestoreListeners';
 
 export const UploadQueueWidget: React.FC = () => {
   const { jobs } = useJobStatus();
   const [isMinimized, setIsMinimized] = useState(false);
+  const [completionTimes, setCompletionTimes] = useState<Record<string, number>>({});
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setCompletionTimes(prev => {
+      const newTimes = { ...prev };
+      let updated = false;
+      jobs.forEach(j => {
+        if ((j.status === 'completed' || j.status === 'failed') && !newTimes[j.id]) {
+          newTimes[j.id] = Date.now();
+          updated = true;
+        }
+      });
+      return updated ? newTimes : prev;
+    });
+  }, [jobs]);
+
+  const visibleJobs = jobs.filter(j => {
+    if (j.status === 'completed' || j.status === 'failed') {
+      const completedAt = completionTimes[j.id];
+      if (completedAt && currentTime - completedAt > 3000) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   // Only show the widget if there are active or recently completed jobs
-  const activeJobs = jobs.filter(j => j.status !== 'completed' && j.status !== 'failed');
-  const recentJobs = jobs.slice(0, 3); // Just show top 3 to prevent huge lists
+  const activeJobs = visibleJobs.filter(j => j.status !== 'completed' && j.status !== 'failed');
+  const recentJobs = visibleJobs.slice(0, 3); // Just show top 3 to prevent huge lists
 
-  if (jobs.length === 0) return null;
+  if (visibleJobs.length === 0) return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-50 w-80 bg-card text-card-foreground border rounded-lg shadow-xl overflow-hidden flex flex-col">
@@ -55,9 +86,9 @@ export const UploadQueueWidget: React.FC = () => {
                 )}
               </li>
             ))}
-            {jobs.length > 3 && (
+            {visibleJobs.length > 3 && (
               <li className="text-xs text-center text-muted-foreground pt-1">
-                + {jobs.length - 3} more jobs
+                + {visibleJobs.length - 3} more jobs
               </li>
             )}
           </ul>

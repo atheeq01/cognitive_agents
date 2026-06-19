@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 class VisionOCRProcessor:
     def __init__(self):
         self.mock_mode = False
-        self.model = os.getenv("GEMINI_VISION_MODEL", "gemini-2.0-flash")
+        self.model = os.getenv("GEMINI_VISION_MODEL", os.getenv("GEMINI_TEXT_MODEL", "gemini-3.5-flash"))
         try:
             from google import genai  # noqa: F401 — validate import at startup
         except Exception as e:

@@ -1,12 +1,13 @@
 import firebase_admin
-from firebase_admin import credentials, auth
-from fastapi import Request, HTTPException, status
+from firebase_admin import auth
+from app.core.config import settings
+from fastapi import HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
 
 logger = logging.getLogger(__name__)
 
-from app.core.config import settings
+
 
 # Initialize Firebase app - assumes default credential from GCP/Emulator
 try:
@@ -15,7 +16,7 @@ try:
     else:
         firebase_admin.initialize_app()
 except ValueError:
-    pass # App already initialized
+    pass
 
 security = HTTPBearer()
 

@@ -22,4 +22,14 @@ class StorageService:
         await loop.run_in_executor(None, _upload)
         return gcs_path
 
+    async def delete_document(self, gcs_path: str) -> None:
+        loop = asyncio.get_event_loop()
+        def _delete():
+            bucket = self.client.bucket(self.bucket_name)
+            blob = bucket.blob(gcs_path)
+            blob.delete()
+        
+        await loop.run_in_executor(None, _delete)
+        logger.info(f"[StorageService] Deleted blob | path={gcs_path}")
+
 storage_service = StorageService()
