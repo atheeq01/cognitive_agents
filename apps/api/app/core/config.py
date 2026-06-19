@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     PROJECT_NAME: str
     API_V1_STR: str
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
 
     # Database connections
     DATABASE_URL: str

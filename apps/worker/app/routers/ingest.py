@@ -33,11 +33,11 @@ async def _trigger_project_synthesis(project_id: str):
         from app.agents.contradiction_pipeline.project_synthesis_agent import project_synthesis_agent
         
         logger.info(f"[Synthesis] Starting project synthesis for {project_id}")
-        docs = firestore_service.get_completed_documents(project_id)
+        docs = await firestore_service.get_completed_documents(project_id)
         all_claims = await pinecone_adapter.fetch_all(project_id, type="claim")
         
         report = await project_synthesis_agent.synthesize(project_id, docs, all_claims)
-        firestore_service.update_project_report(project_id, report)
+        await firestore_service.update_project_report(project_id, report)
         logger.info(f"[Synthesis] Completed project synthesis for {project_id}")
     except Exception as e:
         logger.error(f"[Synthesis] Failed project synthesis: {e}", exc_info=True)
@@ -58,7 +58,7 @@ async def _process_document(project_id: str, document_id: str, gcs_path: str):
         f"[Pipeline] ▶ START | project={project_id} | document={document_id} | file={document_name}"
     )
     try:
-        firestore_service.update_job_status(
+        await firestore_service.update_job_status(
             project_id,
             document_id,
             "Extracting content",
@@ -132,7 +132,7 @@ async def _process_document(project_id: str, document_id: str, gcs_path: str):
         # Guard: if extraction yielded absolutely no text, we cannot run intelligence models.
         if not raw_text.strip():
             logger.warning(f"[Pipeline] Extraction returned empty text for {document_id}. Skipping intelligence steps.")
-            firestore_service.update_job_status(
+            await firestore_service.update_job_status(
                 project_id,
                 document_id,
                 "Completed (No Text Extracted)",
@@ -149,21 +149,13 @@ async def _process_document(project_id: str, document_id: str, gcs_path: str):
             )
             return
 
-        # Inject API path to use the shared orchestrator for prototype execution
-        import sys
-        import os
-
-        api_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "../../../api")
-        )
-        if api_path not in sys.path:
-            sys.path.append(api_path)
+        # Use the shared orchestrator for prototype execution
 
         from app.agents.pipeline import orchestrator
         from app.services.report_generator import report_generator
 
         # 4. Per-chunk analysis (Phase 1)
-        firestore_service.update_job_status(
+        await firestore_service.update_job_status(
             project_id, document_id, "Running cognitive analysis", 30
         )
         all_claims = []
@@ -227,8 +219,8 @@ async def _process_document(project_id: str, document_id: str, gcs_path: str):
         )
 
         # 6. Generate Document Report (Phase 3)
-        firestore_service.update_job_status(
-            project_id, document_id, "Generating final summary report", 90
+        await firestore_service.update_job_status(
+            project_id, document_id, "Comparing to existing PDFs", 70
         )
         from datetime import datetime, timezone
 
@@ -361,7 +353,7 @@ async def _process_document(project_id: str, document_id: str, gcs_path: str):
             f"project={project_id} | document={document_id} | "
             f"similarities={len(job_similarities)} | contradictions={len(job_contradictions)}"
         )
-        firestore_service.update_job_status(
+        await firestore_service.update_job_status(
             project_id,
             document_id,
             "Completed",
@@ -370,7 +362,7 @@ async def _process_document(project_id: str, document_id: str, gcs_path: str):
             document_name=document_name,
             results={
                 "summary": full_summary,
-                "cognitive_insights": cognitive_insights.dict() if hasattr(cognitive_insights, "dict") else cognitive_insights,
+                "cognitive_insights": cognitive_insights.model_dump() if hasattr(cognitive_insights, "model_dump") else cognitive_insights,
                 "similarities": job_similarities,
                 "contradictions": job_contradictions,
                 "markdown_report": report_md,
@@ -387,7 +379,7 @@ async def _process_document(project_id: str, document_id: str, gcs_path: str):
             f"elapsed={elapsed:.3f}s | error_type={type(e).__name__} | error={e}",
             exc_info=True,
         )
-        firestore_service.update_job_status(
+        await firestore_service.update_job_status(
             project_id, document_id, "Failed", 0, "failed", document_name=document_name
         )
 

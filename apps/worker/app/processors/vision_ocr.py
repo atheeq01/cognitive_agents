@@ -43,7 +43,7 @@ class VisionOCRProcessor:
             )
 
             # Pass image inline — recommended for files < 20 MB (our limit is 50 MB but images are typically small)
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def _call():
                 return client.models.generate_content(

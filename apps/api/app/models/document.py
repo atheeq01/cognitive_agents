@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, ForeignKey, Enum, Integer
+from sqlalchemy import Column, String, DateTime, ForeignKey, Enum, Integer, func
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.base import Base
 import enum
@@ -28,4 +28,4 @@ class Document(Base):
     visibility = Column(String, default="project") # project, private
     privilege_status = Column(String, nullable=True) # attorney_client, etc.
     
-    uploaded_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    uploaded_at = Column(DateTime(timezone=True), default=func.now())

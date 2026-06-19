@@ -2,16 +2,22 @@ import asyncio
 import json
 from google.cloud import pubsub_v1
 import logging
+import os
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 class PubSubService:
     def __init__(self):
-        self.publisher = pubsub_v1.PublisherClient()
+        try:
+            self.publisher = pubsub_v1.PublisherClient()
+        except Exception as e:
+            logger.error(f"Failed to initialize PubSub publisher: {e}")
+            self.publisher = None
         self.project_id = settings.FIREBASE_PROJECT_ID or "demo-omnimind"
-        self.topic_path = self.publisher.topic_path(self.project_id, "document-uploads")
-        self.member_topic_path = self.publisher.topic_path(self.project_id, "member-events")
+        if self.publisher:
+            self.topic_path = self.publisher.topic_path(self.project_id, "document-uploads")
+            self.member_topic_path = self.publisher.topic_path(self.project_id, "member-events")
 
     async def publish_document_approved(self, project_id: str, document_id: str, gcs_path: str):
         payload = {
@@ -45,12 +51,16 @@ class PubSubService:
                 except Exception as e:
                     logger.error(f"[LOCAL DEV] Failed to push to local worker (is it running on port 8001?): {e}")
             
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             loop.run_in_executor(None, _send)
             return
             
+        if not self.publisher:
+            logger.warning(f"No pubsub publisher available, dropping message: {payload}")
+            return
+            
         data = json.dumps(payload).encode("utf-8")
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             future = self.publisher.publish(self.topic_path, data)
             await loop.run_in_executor(None, future.result)
@@ -59,8 +69,12 @@ class PubSubService:
             raise
 
     async def _publish_member_event(self, payload: dict):
+        if not self.publisher:
+            logger.warning(f"No pubsub publisher available, dropping message: {payload}")
+            return
+            
         data = json.dumps(payload).encode("utf-8")
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             future = self.publisher.publish(self.member_topic_path, data)
             await loop.run_in_executor(None, future.result)

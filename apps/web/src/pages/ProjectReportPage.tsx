@@ -1,5 +1,5 @@
 import React from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useProject } from '../app/providers/ProjectProvider';
 import { apiFetch } from '../lib/api';
 import { Loader2, RefreshCw, FileText, Brain, ShieldAlert, CheckCircle } from 'lucide-react';
@@ -16,9 +16,76 @@ export const ProjectReportPage: React.FC = () => {
       return await apiFetch(`/v1/projects/${projectId}/report`);
     },
     enabled: !!projectId,
+    staleTime: Infinity, // Rely on SSE for updates
   });
 
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
 
+  React.useEffect(() => {
+    if (!projectId) return;
+
+    let isActive = true;
+    let abortController = new AbortController();
+
+    const startStream = async () => {
+      try {
+        let token = '';
+        const { auth } = await import('../lib/firebase');
+        if (auth.currentUser) {
+          if (auth.currentUser.uid === 'mock-user-123') {
+            token = `mock-${auth.currentUser.email}`;
+          } else {
+            token = await auth.currentUser.getIdToken();
+          }
+        }
+
+        const response = await fetch(`/api/v1/projects/${projectId}/report/stream`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: abortController.signal
+        });
+
+        if (!response.ok) return;
+
+        const reader = response.body?.getReader();
+        if (!reader) return;
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (isActive) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          let boundary = buffer.indexOf('\n\n');
+          while (boundary !== -1) {
+            const message = buffer.slice(0, boundary);
+            buffer = buffer.slice(boundary + 2);
+            if (message.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(message.slice(6));
+                queryClient.setQueryData(['project_report', projectId], data);
+                setIsRefreshing(false);
+              } catch (e) {}
+            }
+            boundary = buffer.indexOf('\n\n');
+          }
+        }
+      } catch (e: any) {
+        if (e.name !== 'AbortError') {
+          console.error("Stream error", e);
+        }
+      }
+    };
+
+    startStream();
+
+    return () => {
+      isActive = false;
+      abortController.abort();
+    };
+  }, [projectId, queryClient]);
 
   const filteredReport = React.useMemo(() => {
     return report;
@@ -27,11 +94,12 @@ export const ProjectReportPage: React.FC = () => {
   const refreshMutation = useMutation({
     mutationFn: () => apiFetch(`/v1/projects/${projectId}/report/refresh`, { method: 'POST' }),
     onSuccess: () => {
-      toast.success('Report refresh triggered');
-      refetch();
+      toast.info('Report refresh started. This may take a minute...');
+      setIsRefreshing(true);
     },
     onError: (err: Error) => {
-      toast.error('Failed to refresh report', { description: err.message });
+      toast.error('Failed to start report refresh', { description: err.message });
+      setIsRefreshing(false);
     }
   });
 
@@ -60,11 +128,11 @@ export const ProjectReportPage: React.FC = () => {
         </div>
         <button
           onClick={() => refreshMutation.mutate()}
-          disabled={refreshMutation.isPending}
+          disabled={refreshMutation.isPending || isRefreshing}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
         >
-          <RefreshCw className={`w-4 h-4 ${refreshMutation.isPending ? 'animate-spin' : ''}`} />
-          Refresh
+          <RefreshCw className={`w-4 h-4 ${refreshMutation.isPending || isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
 

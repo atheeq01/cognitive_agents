@@ -10,20 +10,20 @@ class StorageService:
         self.client = storage.Client()
         self.bucket_name = settings.GCS_BUCKET_NAME
 
-    async def upload_document(self, project_id: str, document_id: str, filename: str, content: bytes) -> str:
+    async def upload_document(self, project_id: str, document_id: str, filename: str, file_obj) -> str:
         gcs_path = f"projects/{project_id}/documents/{document_id}/{filename}"
         
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         def _upload():
             bucket = self.client.bucket(self.bucket_name)
             blob = bucket.blob(gcs_path)
-            blob.upload_from_string(content)
+            blob.upload_from_file(file_obj)
         
         await loop.run_in_executor(None, _upload)
         return gcs_path
 
     async def delete_document(self, gcs_path: str) -> None:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         def _delete():
             bucket = self.client.bucket(self.bucket_name)
             blob = bucket.blob(gcs_path)

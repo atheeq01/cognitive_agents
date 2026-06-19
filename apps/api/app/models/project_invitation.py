@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
-from sqlalchemy import Column, String, DateTime, ForeignKey
+from sqlalchemy import Column, String, DateTime, ForeignKey, text, func
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.base import Base
 
@@ -14,5 +14,5 @@ class ProjectInvitation(Base):
     token = Column(String, unique=True, nullable=False, index=True)
     status = Column(String, default="pending")  # pending, accepted, declined
     invited_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=True)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
-    expires_at = Column(DateTime(timezone=True), default=lambda: datetime.utcnow() + timedelta(days=7))
+    created_at = Column(DateTime(timezone=True), default=func.now())
+    expires_at = Column(DateTime(timezone=True), default=text("NOW() + INTERVAL '7 days'"))

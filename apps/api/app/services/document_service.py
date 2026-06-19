@@ -31,13 +31,15 @@ class DocumentService:
 
     @staticmethod
     async def upload_document(db: AsyncSession, project_id: uuid.UUID, file: UploadFile, user_id: uuid.UUID) -> Document:
-        content = await file.read()
+        # Read small chunk to check magic
+        header_chunk = await file.read(2048)
+        await file.seek(0)
         
-        size_bytes = len(content)
-        if size_bytes > MAX_FILE_SIZE:
+        size_bytes = file.size
+        if size_bytes is not None and size_bytes > MAX_FILE_SIZE:
             raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File exceeds 50MB limit")
             
-        mime_type = magic.from_buffer(content, mime=True)
+        mime_type = magic.from_buffer(header_chunk, mime=True)
         if mime_type not in ALLOWED_MIME_TYPES:
             raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f"Unsupported file type: {mime_type}")
             
@@ -49,7 +51,7 @@ class DocumentService:
         doc_status = DocumentStatus.APPROVED
         
         document_id = uuid.uuid4()
-        gcs_path = await storage_service.upload_document(str(project_id), str(document_id), file.filename, content)
+        gcs_path = await storage_service.upload_document(str(project_id), str(document_id), file.filename, file.file)
         
         document = Document(
             document_id=document_id,

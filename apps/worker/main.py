@@ -41,6 +41,35 @@ if _google_api_key:
 else:
     logger.warning("[Worker] GOOGLE_API_KEY not set!")
 
+# ── Merge API App Path for Shared Code ───────────────────────────────────────
+import sys
+import pkgutil
+import importlib
+
+api_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../api"))
+if api_path not in sys.path:
+    sys.path.append(api_path)
+
+import app as _app_module
+api_app_path = os.path.join(api_path, "app")
+if hasattr(_app_module, "__path__") and api_app_path not in _app_module.__path__:
+    _app_module.__path__.append(api_app_path)
+
+def _merge_paths(base_pkg, source_path):
+    for _, name, ispkg in pkgutil.iter_modules([source_path]):
+        if ispkg:
+            full_name = f"{base_pkg.__name__}.{name}"
+            try:
+                mod = importlib.import_module(full_name)
+                sub_source = os.path.join(source_path, name)
+                if hasattr(mod, '__path__') and sub_source not in mod.__path__:
+                    mod.__path__.append(sub_source)
+                _merge_paths(mod, sub_source)
+            except ImportError:
+                pass
+
+_merge_paths(_app_module, api_app_path)
+
 # ── FastAPI app ──────────────────────────────────────────────────────────────
 from fastapi import FastAPI   # noqa: E402
 from app.routers import ingest  # noqa: E402

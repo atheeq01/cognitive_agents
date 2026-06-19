@@ -28,7 +28,7 @@ class FirestoreService:
         self.db = firestore.client()
         logger.info("[FirestoreService] Firestore client initialized successfully")
 
-    def update_job_status(
+    async def update_job_status(
         self,
         project_id: str,
         document_id: str,
@@ -42,6 +42,7 @@ class FirestoreService:
         Updates the job status document in Firestore.
         Path: projects/{project_id}/jobs/{document_id}
         """
+        import asyncio
         try:
             doc_ref = (
                 self.db.collection("projects")
@@ -63,7 +64,7 @@ class FirestoreService:
             if results:
                 data["results"] = results
 
-            doc_ref.set(data, merge=True)
+            await asyncio.to_thread(doc_ref.set, data, merge=True)
             logger.info(
                 f"[FirestoreService] Job status updated | "
                 f"project={project_id} | document={document_id} | "
@@ -76,30 +77,34 @@ class FirestoreService:
                 f"project={project_id} | document={document_id} | error={e}"
             )
 
-    def get_completed_documents(self, project_id: str) -> list[dict]:
+    async def get_completed_documents(self, project_id: str) -> list[dict]:
         """
         Retrieves all completed document jobs for the given project.
         """
         from google.cloud.firestore_v1.base_query import FieldFilter
+        import asyncio
         try:
-            docs = (
+            query = (
                 self.db.collection("projects")
                 .document(project_id)
                 .collection("jobs")
                 .where(filter=FieldFilter("status", "==", "completed"))
-                .stream()
             )
+            def _stream():
+                return list(query.stream())
+            docs = await asyncio.to_thread(_stream)
             return [doc.to_dict() for doc in docs]
         except Exception as e:
             logger.error(f"[FirestoreService] Failed to get completed documents: {e}")
             return []
 
-    def update_project_report(self, project_id: str, report: dict):
+    async def update_project_report(self, project_id: str, report: dict):
         """
         Writes the synthesized intelligence report to the project document.
         """
         try:
             from datetime import datetime, timezone
+            import asyncio
             doc_ref = self.db.collection("projects").document(project_id)
             
             data = {
@@ -107,7 +112,7 @@ class FirestoreService:
                 "last_synthesized_at": datetime.now(timezone.utc).isoformat()
             }
             
-            doc_ref.set(data, merge=True)
+            await asyncio.to_thread(doc_ref.set, data, merge=True)
             logger.info(f"[FirestoreService] Project report updated | project={project_id}")
         except Exception as e:
             logger.error(f"[FirestoreService] Failed to update project report: {e}")

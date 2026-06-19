@@ -36,11 +36,7 @@ class AgreementFinding(BaseModel):
     supporting_claims: List[str]
     supporting_sources: List[SourceLocation]
 
-class CognitiveInsights(BaseModel):
-    intents: List[str] = []
-    reasoning_patterns: List[str] = []
-    assumptions: List[str] = []
-    conclusions: List[str] = []
+from app.schemas.cognitive import CognitiveInsights
 
 class ProjectReport(BaseModel):
     project_id: str

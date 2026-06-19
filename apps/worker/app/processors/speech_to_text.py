@@ -43,7 +43,7 @@ class SpeechToTextProcessor:
                 "and preserve the dialogue structure."
             )
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             def _call():
                 return client.models.generate_content(
                     model=self.model,

@@ -1,6 +1,9 @@
 import logging
 import asyncio
-from pinecone import Pinecone
+try:
+    from pinecone.grpc import PineconeGRPC as Pinecone
+except ImportError:
+    from pinecone import Pinecone
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -22,7 +25,8 @@ class PineconeAdapter:
                     logger.info(f"Creating Pinecone index '{self.index_name}' (this may take a minute)...")
                     self._pc.create_index(
                         name=self.index_name,
-                        dimension=3072,  # Match gemini-embedding-001 dimensions
+                        dimension=768 if "004" in getattr(settings, "GEMINI_EMBEDDING_MODEL", "") else 3072,
+
                         metric="cosine",
                         spec=ServerlessSpec(
                             cloud="aws",
@@ -57,9 +61,10 @@ class PineconeAdapter:
                 return
             except Exception as e:
                 logger.error(f"Failed to upsert vectors to Pinecone (attempt {attempt+1}): {e}")
-                if "Failed to resolve" in str(e) or "NameResolutionError" in str(e):
+                if any(err in str(e) for err in ["Failed to resolve", "NameResolutionError", "errors resolving", "UNAVAILABLE"]):
                     try:
-                        self._pc = Pinecone(api_key=settings.PINECONE_API_KEY)
+                        from pinecone import Pinecone as PineconeREST
+                        self._pc = PineconeREST(api_key=settings.PINECONE_API_KEY)
                         self._index = self._pc.Index(self.index_name)
                     except Exception as inner_e:
                         logger.error(f"Failed to reinitialize Pinecone index: {inner_e}")
@@ -88,9 +93,10 @@ class PineconeAdapter:
                 return response.matches
             except Exception as e:
                 logger.error(f"Failed to query Pinecone (attempt {attempt+1}): {e}")
-                if "Failed to resolve" in str(e) or "NameResolutionError" in str(e):
+                if any(err in str(e) for err in ["Failed to resolve", "NameResolutionError", "errors resolving", "UNAVAILABLE"]):
                     try:
-                        self._pc = Pinecone(api_key=settings.PINECONE_API_KEY)
+                        from pinecone import Pinecone as PineconeREST
+                        self._pc = PineconeREST(api_key=settings.PINECONE_API_KEY)
                         self._index = self._pc.Index(self.index_name)
                     except Exception as inner_e:
                         logger.error(f"Failed to reinitialize Pinecone index: {inner_e}")
@@ -109,7 +115,49 @@ class PineconeAdapter:
             return []
             
         try:
-            dimension = 3072
+            if hasattr(self._index, 'list'):
+                all_matches = []
+                for attempt in range(5):
+                    try:
+                        pagination_token = None
+                        while True:
+                            list_args = {"namespace": str(project_id)}
+                            if pagination_token:
+                                list_args["pagination_token"] = pagination_token
+                            
+                            # Using to_thread for blocking call
+                            list_results = await asyncio.to_thread(self._index.list, **list_args)
+                            
+                            # Flatten the generator
+                            ids = [v_id for page in list_results for v_id in page] if hasattr(list_results, '__iter__') else list(list_results)
+                            if ids:
+                                # Fetch in batches of 100
+                                for i in range(0, len(ids), 100):
+                                    batch_ids = ids[i:i+100]
+                                    fetch_resp = await asyncio.to_thread(self._index.fetch, ids=batch_ids, namespace=str(project_id))
+                                    for v_id, vdata in fetch_resp.vectors.items():
+                                        if vdata.metadata and vdata.metadata.get("type") == type:
+                                            all_matches.append({**vdata.metadata, "values": vdata.values})
+                                            
+                            pagination_token = getattr(list_results, "pagination_token", None)
+                            if not pagination_token:
+                                break
+                        return all_matches
+                    except Exception as e:
+                        logger.error(f"Failed list/fetch from Pinecone (attempt {attempt+1}): {e}")
+                        if any(err in str(e) for err in ["Failed to resolve", "NameResolutionError", "errors resolving", "UNAVAILABLE"]):
+                            try:
+                                from pinecone import Pinecone as PineconeREST
+                                self._pc = PineconeREST(api_key=settings.PINECONE_API_KEY)
+                                self._index = self._pc.Index(self.index_name)
+                            except Exception as inner_e:
+                                logger.error(f"Failed to reinitialize Pinecone index: {inner_e}")
+                        if attempt == 4:
+                            break
+                        await asyncio.sleep(2 ** attempt + 3)
+            
+            # Fallback for old Pinecone clients
+            dimension = 768 if "004" in getattr(settings, "GEMINI_EMBEDDING_MODEL", "") else 3072
             dummy_vector = [1e-5] * dimension
             
             for attempt in range(5):
@@ -126,15 +174,14 @@ class PineconeAdapter:
                     return [{**match.metadata, "values": match.values} for match in response.matches if match.metadata]
                 except Exception as e:
                     logger.error(f"Failed to fetch_all from Pinecone (attempt {attempt+1}): {e}")
-                    if "Failed to resolve" in str(e) or "NameResolutionError" in str(e):
-                        # Re-initialize index client in case of stale host resolution
+                    if any(err in str(e) for err in ["Failed to resolve", "NameResolutionError", "errors resolving", "UNAVAILABLE"]):
                         try:
-                            self._pc = Pinecone(api_key=settings.PINECONE_API_KEY)
+                            from pinecone import Pinecone as PineconeREST
+                            self._pc = PineconeREST(api_key=settings.PINECONE_API_KEY)
                             self._index = self._pc.Index(self.index_name)
                         except Exception as inner_e:
                             logger.error(f"Failed to reinitialize Pinecone index: {inner_e}")
                     if attempt == 4:
-                        logger.error("Pinecone fetch_all failed completely after 5 attempts. Returning empty list.")
                         return []
                     await asyncio.sleep(2 ** attempt + 3)
             return []

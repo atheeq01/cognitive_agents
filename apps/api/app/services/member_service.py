@@ -95,6 +95,10 @@ class MemberService:
         if current_user.email != invitation.email:
             raise HTTPException(status_code=400, detail="This invitation was sent to a different email address")
             
+        from datetime import datetime, timezone
+        if invitation.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="Invitation has expired")
+            
         # Check if already in project (in case they somehow joined)
         mem_result = await db.execute(select(ProjectMember).where(
             ProjectMember.project_id == invitation.project_id,

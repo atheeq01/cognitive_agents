@@ -9,14 +9,8 @@ logger = logging.getLogger(__name__)
 
 
 
-# Initialize Firebase app - assumes default credential from GCP/Emulator
-try:
-    if settings.FIREBASE_PROJECT_ID:
-        firebase_admin.initialize_app(options={'projectId': settings.FIREBASE_PROJECT_ID})
-    else:
-        firebase_admin.initialize_app()
-except ValueError:
-    pass
+from app.core.firebase import init_firebase
+init_firebase()
 
 security = HTTPBearer()
 
@@ -27,7 +21,7 @@ async def verify_firebase_token(cred: HTTPAuthorizationCredentials) -> dict:
     if token.startswith("Bearer "):
         token = token[7:]
         
-    if "mock-" in token:
+    if getattr(settings, "ENVIRONMENT", "production") == "local" and "mock-" in token:
         email = token.replace("mock-", "")
         logger.info(f"Using mock token bypass for email: {email}")
         return {"email": email, "name": "Mock User"}

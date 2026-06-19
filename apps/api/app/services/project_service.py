@@ -63,17 +63,14 @@ class ProjectService:
 
     @staticmethod
     async def get_project_report(project_id: UUID) -> dict | None:
-        import firebase_admin
+        from app.core.firebase import init_firebase
         from firebase_admin import firestore as fb_firestore
-        import os
-
-        if not firebase_admin._apps:
-            project = os.environ.get("FIREBASE_PROJECT_ID", "omnimind-499716")
-            firebase_admin.initialize_app(options={"projectId": project})
-
+        import asyncio
+        
+        init_firebase()
         fs_client = fb_firestore.client()
         report_ref = fs_client.collection("projects").document(str(project_id))
-        doc = report_ref.get()
+        doc = await asyncio.to_thread(report_ref.get)
         if doc.exists:
             data = doc.to_dict()
             return data.get("project_report")
@@ -81,20 +78,22 @@ class ProjectService:
 
     @staticmethod
     async def trigger_project_report_refresh(project_id: UUID) -> None:
-        import firebase_admin
+        from app.core.firebase import init_firebase
         from firebase_admin import firestore as fb_firestore
         from datetime import datetime, timezone
         from app.agents.contradiction_pipeline.project_synthesis_agent import project_synthesis_agent
         from app.vector_store.pinecone_adapter import pinecone_adapter
-        import os
-
-        if not firebase_admin._apps:
-            project = os.environ.get("FIREBASE_PROJECT_ID", "omnimind-499716")
-            firebase_admin.initialize_app(options={"projectId": project})
-
-        fs_client = fb_firestore.client()
         from google.cloud.firestore_v1.base_query import FieldFilter
-        docs = fs_client.collection("projects").document(str(project_id)).collection("jobs").where(filter=FieldFilter("status", "==", "completed")).stream()
+        import asyncio
+        
+        init_firebase()
+        fs_client = fb_firestore.client()
+        
+        query = fs_client.collection("projects").document(str(project_id)).collection("jobs").where(filter=FieldFilter("status", "==", "completed"))
+        def _stream():
+            return list(query.stream())
+        docs = await asyncio.to_thread(_stream)
+        
         valid_doc_ids = set()
         docs_list = []
         for d in docs:
@@ -106,8 +105,25 @@ class ProjectService:
 
         report = await project_synthesis_agent.synthesize(str(project_id), docs_list, filtered_claims)
 
-        if report:
-            fs_client.collection("projects").document(str(project_id)).set({
-                "project_report": report,
-                "last_synthesized_at": datetime.now(timezone.utc).isoformat()
-            }, merge=True)
+        def _set_report():
+            if report:
+                fs_client.collection("projects").document(str(project_id)).set({
+                    "project_report": report,
+                    "last_synthesized_at": datetime.now(timezone.utc).isoformat()
+                }, merge=True)
+            else:
+                fs_client.collection("projects").document(str(project_id)).set({
+                    "project_report": {
+                        "project_id": str(project_id),
+                        "document_count": 0,
+                        "modalities_included": [],
+                        "unified_summary": "No documents in project.",
+                        "contradictions": [],
+                        "agreements": [],
+                        "cognitive_synthesis": {"intents": [], "reasoning_patterns": [], "assumptions": [], "conclusions": []},
+                        "generated_at": datetime.now(timezone.utc).isoformat()
+                    },
+                    "last_synthesized_at": datetime.now(timezone.utc).isoformat()
+                }, merge=True)
+                
+        await asyncio.to_thread(_set_report)

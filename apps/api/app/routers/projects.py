@@ -69,6 +69,56 @@ async def get_project_report(
         }
     return report
 
+@router.get("/{project_id}/report/stream")
+async def stream_project_report(
+    project_id: UUID,
+    membership: ProjectMember = Depends(require_project_role(["admin", "member", "viewer"])),
+):
+    import asyncio
+    import json
+    from fastapi.responses import StreamingResponse
+    from app.core.firebase import init_firebase
+    from firebase_admin import firestore as fb_firestore
+
+    async def event_generator():
+        init_firebase()
+        fs_client = fb_firestore.client()
+        report_ref = fs_client.collection("projects").document(str(project_id))
+        
+        loop = asyncio.get_running_loop()
+        queue = asyncio.Queue()
+
+        def on_snapshot(col_snapshot, changes, read_time):
+            for doc in col_snapshot:
+                if doc.exists:
+                    data = doc.to_dict()
+                    report = data.get("project_report")
+                    if report:
+                        loop.call_soon_threadsafe(queue.put_nowait, report)
+
+        doc_watch = report_ref.on_snapshot(on_snapshot)
+        
+        try:
+            last_generated = None
+            while True:
+                def json_serial(obj):
+                    if hasattr(obj, 'isoformat'):
+                        return obj.isoformat()
+                    raise TypeError(f"Type {type(obj)} not serializable")
+                    
+                report = await queue.get()
+                generated_at = report.get("generated_at") or report.get("last_synthesized_at")
+                if generated_at != last_generated:
+                    last_generated = generated_at
+                    yield f"data: {json.dumps(report, default=json_serial)}\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            doc_watch.unsubscribe()
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 @router.post("/{project_id}/report/refresh")
 async def refresh_project_report(
     project_id: UUID,
