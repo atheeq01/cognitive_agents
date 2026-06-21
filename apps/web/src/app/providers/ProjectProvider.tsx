@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../lib/api';
 import { useAuth } from './AuthProvider';
@@ -32,10 +32,14 @@ const ProjectContext = createContext<ProjectContextType>({
 
 
 
+import { useMatch, useNavigate } from 'react-router-dom';
+
 export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeProject, setActiveProject] = useState<Project | null>(null);
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const match = useMatch('/projects/:projectId/*');
+  const urlProjectId = match?.params.projectId;
 
   const { data: fetchedProjects, isLoading, error } = useQuery<Project[]>({
     queryKey: ['projects'],
@@ -44,6 +48,19 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     },
     enabled: !!user,
   });
+
+  const projects = fetchedProjects || [];
+  
+  // Find active project from URL, or fallback to first project if URL doesn't have one
+  const activeProject = projects.find(p => p.project_id === urlProjectId) || null;
+
+  useEffect(() => {
+    // If we have projects but no valid active project in URL, redirect to the first project.
+    // This handles both the `/` root case and invalid project IDs.
+    if (!isLoading && projects.length > 0 && (!urlProjectId || !activeProject)) {
+      navigate(`/projects/${projects[0].project_id}`, { replace: true });
+    }
+  }, [isLoading, projects, urlProjectId, activeProject, navigate]);
 
   const createMutation = useMutation({
     mutationFn: async ({ name, description }: { name: string; description?: string }) => {
@@ -54,20 +71,16 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     },
     onSuccess: (newProject: Project) => {
       queryClient.setQueryData<Project[]>(['projects'], (old = []) => [...old, newProject]);
-      setActiveProject(newProject);
+      navigate(`/projects/${newProject.project_id}`);
     },
   });
 
-  const projects = fetchedProjects || [];
-
-  useEffect(() => {
-    if (!activeProject && fetchedProjects?.length) {
-      setActiveProject(fetchedProjects[0]);
-    }
-  }, [fetchedProjects, activeProject]);
-
   const createProject = async (name: string, description?: string) => {
     await createMutation.mutateAsync({ name, description });
+  };
+
+  const setActiveProject = (project: Project) => {
+    navigate(`/projects/${project.project_id}`);
   };
 
   return (

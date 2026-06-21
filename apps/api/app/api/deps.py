@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 from fastapi.security import HTTPAuthorizationCredentials
 
 from app.core.security import security, verify_firebase_token
@@ -23,10 +24,17 @@ async def get_current_user(
     user = result.scalars().first()
     
     if not user:
-        user = User(email=email, name=token_payload.get("name"))
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+        try:
+            user = User(email=email, name=token_payload.get("name"))
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+        except IntegrityError:
+            await db.rollback()
+            result = await db.execute(select(User).where(User.email == email))
+            user = result.scalars().first()
+            if not user:
+                raise HTTPException(status_code=500, detail="Failed to create or retrieve user")
         
     return user
 

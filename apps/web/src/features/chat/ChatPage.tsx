@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useProject } from '../../app/providers/ProjectProvider';
 import { apiFetch } from '../../lib/api';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 interface Source {
   filename: string;
@@ -87,7 +91,7 @@ export const ChatPage: React.FC = () => {
           <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
           </svg>
-          Research Assistant — {activeProject.name}
+          Research Assistant - {activeProject.name}
         </h2>
         <p className="text-xs text-muted-foreground mt-1">Ask questions across all documents in this project.</p>
       </div>
@@ -115,8 +119,17 @@ export const ChatPage: React.FC = () => {
                 ? 'bg-primary text-primary-foreground rounded-tr-sm' 
                 : 'bg-muted/50 border rounded-tl-sm'
             }`}>
-              <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
-                {msg.content}
+              <div className={`prose prose-sm dark:prose-invert max-w-none prose-pre:bg-muted/80 prose-pre:text-foreground ${
+                msg.role === 'user'
+                  ? 'prose-p:text-primary-foreground prose-headings:text-primary-foreground prose-strong:text-primary-foreground prose-ul:text-primary-foreground prose-ol:text-primary-foreground prose-li:text-primary-foreground prose-a:text-primary-foreground prose-code:text-primary-foreground'
+                  : 'prose-p:text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-a:text-primary prose-code:text-foreground'
+              }`}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                >
+                  {msg.content}
+                </ReactMarkdown>
               </div>
               
               {/* Source Citations */}

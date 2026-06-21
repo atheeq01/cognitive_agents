@@ -35,6 +35,29 @@ class DocumentAIProcessor:
         except Exception as e:
             logger.warning(f"Document AI not available: {e}. Will use Gemini fallback.")
 
+    def _split_pdf_if_needed(self, file_bytes: bytes, mime_type: str, max_pages: int = 30) -> list[bytes]:
+        if "pdf" not in mime_type.lower():
+            return [file_bytes]
+            
+        try:
+            import fitz
+            fitz.TOOLS.mupdf_display_errors(False)
+            doc = fitz.open(stream=file_bytes, filetype="pdf")
+            if len(doc) <= max_pages:
+                return [file_bytes]
+                
+            chunks = []
+            for i in range(0, len(doc), max_pages):
+                chunk_doc = fitz.open()
+                chunk_doc.insert_pdf(doc, from_page=i, to_page=min(i + max_pages - 1, len(doc) - 1))
+                chunks.append(chunk_doc.tobytes())
+                chunk_doc.close()
+            doc.close()
+            return chunks
+        except Exception as e:
+            logger.warning(f"Failed to split PDF, proceeding with original: {e}")
+            return [file_bytes]
+
     async def process_document(self, file_bytes: bytes, mime_type: str, gcs_path: Optional[str] = None, document_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Processes PDF/DOCX to extract text.
@@ -47,7 +70,38 @@ class DocumentAIProcessor:
         # --- Attempt 1: Document AI (if available) ---
         if self.docai_available:
             try:
-                result = await self._extract_with_docai(file_bytes, mime_type, gcs_path, document_id)
+                chunks = self._split_pdf_if_needed(file_bytes, mime_type, max_pages=30)
+                
+                if len(chunks) == 1:
+                    result = await self._extract_with_docai(chunks[0], mime_type, gcs_path, document_id)
+                else:
+                    logger.info(f"[DocumentAI] Document > 30 pages. Split into {len(chunks)} chunks.")
+                    results = []
+                    for i, chunk_bytes in enumerate(chunks):
+                        logger.info(f"[DocumentAI] Processing chunk {i+1}/{len(chunks)}")
+                        res = await self._extract_with_docai(chunk_bytes, mime_type, gcs_path, document_id)
+                        results.append(res)
+                    
+                    merged_text = "\n\n".join(r.get("raw_text", "") for r in results)
+                    
+                    merged_pages = []
+                    page_offset = 0
+                    for r in results:
+                        for p in r.get("pages", []):
+                            merged_pages.append({
+                                "page_number": p["page_number"] + page_offset,
+                                "text": p["text"]
+                            })
+                        page_offset += r.get("page_count", 0)
+                        
+                    result = {
+                        "raw_text": merged_text,
+                        "pages": merged_pages,
+                        "page_count": sum(r.get("page_count", 0) for r in results),
+                        "tables_found": sum(r.get("tables_found", 0) for r in results),
+                        "modality": results[0].get("modality", "pdf") if results else "pdf"
+                    }
+
                 if result.get("raw_text", "").strip():
                     logger.info(f"[DocumentAI] Extraction succeeded | document={doc_id_label} | text_length={len(result['raw_text'])} chars")
                     return result
@@ -78,8 +132,8 @@ class DocumentAIProcessor:
             page_text = ""
             if hasattr(page, "layout") and hasattr(page.layout, "text_anchor"):
                 for segment in page.layout.text_anchor.text_segments:
-                    start_index = int(segment.start_index) if segment.start_index else 0
-                    end_index = int(segment.end_index)
+                    start_index = segment.start_index if segment.start_index else 0
+                    end_index = segment.end_index
                     page_text += document.text[start_index:end_index]
             pages_data.append({"page_number": i + 1, "text": page_text})
 
@@ -118,6 +172,7 @@ class DocumentAIProcessor:
         if is_pdf:
             try:
                 import fitz
+                fitz.TOOLS.mupdf_display_errors(False)
                 doc = fitz.open(stream=file_bytes, filetype="pdf")
                 for page_num in range(len(doc)):
                     page = doc.load_page(page_num)

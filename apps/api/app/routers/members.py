@@ -36,7 +36,7 @@ async def add_member(
     membership: ProjectMember = Depends(require_project_role(["admin"])),
     db: AsyncSession = Depends(get_db)
 ):
-    return await MemberService.add_member(db, project_id, invite, current_user.user_id)
+    return await MemberService.add_member(db, project_id, invite, current_user.user_id)  # type: ignore
 
 @router.patch("/members/{user_id}/role", response_model=MemberResponse)
 async def update_role(
@@ -54,9 +54,9 @@ async def update_role(
         "role": pm.role,
         "joined_at": pm.joined_at,
         "invited_by": pm.invited_by,
-        "email": user.email,
-        "name": user.name,
-        "avatar_url": user.avatar_url
+        "email": user.email if user else "",
+        "name": user.name if user else None,
+        "avatar_url": user.avatar_url if user else None
     }
 
 @router.delete("/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -67,3 +67,12 @@ async def remove_member(
     db: AsyncSession = Depends(get_db)
 ):
     await MemberService.remove_member(db, project_id, user_id)
+
+@router.delete("/invitations/{invitation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_invitation(
+    project_id: UUID,
+    invitation_id: UUID,
+    membership: ProjectMember = Depends(require_project_role(["admin"])),
+    db: AsyncSession = Depends(get_db)
+):
+    await MemberService.delete_invitation(db, project_id, invitation_id)

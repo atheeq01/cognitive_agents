@@ -100,10 +100,20 @@ class ProjectService:
             valid_doc_ids.add(d.id)
             docs_list.append(d.to_dict())
 
-        all_claims = await pinecone_adapter.fetch_all(str(project_id), type="claim")
-        filtered_claims = [c for c in all_claims if c.get("document_id") in valid_doc_ids]
+        all_claims = []
+        for d in docs_list:
+            doc_claims = d.get("results", {}).get("claims", [])
+            for c in doc_claims:
+                all_claims.append({
+                    "fact": c.get("fact"),
+                    "source_location": c.get("source_location")
+                })
+                
+        if not all_claims:
+            pinecone_claims = await pinecone_adapter.fetch_all(str(project_id), type="claim")
+            all_claims = [c for c in pinecone_claims if c.get("document_id") in valid_doc_ids]
 
-        report = await project_synthesis_agent.synthesize(str(project_id), docs_list, filtered_claims)
+        report = await project_synthesis_agent.synthesize(str(project_id), docs_list, all_claims)
 
         def _set_report():
             if report:

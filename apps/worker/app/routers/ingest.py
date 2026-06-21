@@ -34,7 +34,20 @@ async def _trigger_project_synthesis(project_id: str):
         
         logger.info(f"[Synthesis] Starting project synthesis for {project_id}")
         docs = await firestore_service.get_completed_documents(project_id)
-        all_claims = await pinecone_adapter.fetch_all(project_id, type="claim")
+        
+        # Pull claims directly from the completed documents to avoid Pinecone eventual consistency delays
+        all_claims = []
+        for doc in docs:
+            doc_claims = doc.get("results", {}).get("claims", [])
+            for c in doc_claims:
+                all_claims.append({
+                    "fact": c.get("fact"),
+                    "source_location": c.get("source_location")
+                })
+                
+        # Fallback to Pinecone if we have no claims (e.g., from older documents before this fix)
+        if not all_claims:
+            all_claims = await pinecone_adapter.fetch_all(project_id, type="claim")
         
         report = await project_synthesis_agent.synthesize(project_id, docs, all_claims)
         await firestore_service.update_project_report(project_id, report)
@@ -277,6 +290,8 @@ async def _process_document(project_id: str, document_id: str, gcs_path: str):
                     from app.agents.contradiction_pipeline.nli_classifier import nli_classifier
                     from app.agents.contradiction_pipeline.verification_pass import verifier_agent
                     
+                    active_docs = await firestore_service.get_completed_documents(project_id)
+                    active_doc_ids = {doc.get("id") for doc in active_docs if doc.get("id")}
                     
                     async def process_claim(i, claim_text, vector):
                         original_claim = next((c for c in all_claims if c.get("fact") == claim_text), {})
@@ -287,8 +302,11 @@ async def _process_document(project_id: str, document_id: str, gcs_path: str):
                         for match in matches:
                             metadata = match.metadata if hasattr(match, 'metadata') else match.get("metadata", {})
                             score = match.score if hasattr(match, 'score') else match.get("score", 0)
+                            match_doc_id = metadata.get("document_id")
                             
-                            if metadata.get("document_id") == document_id or score < 0.8:
+                            if match_doc_id == document_id or score < 0.8:
+                                continue
+                            if match_doc_id not in active_doc_ids:
                                 continue
                                 
                             match_claim = {
@@ -366,6 +384,7 @@ async def _process_document(project_id: str, document_id: str, gcs_path: str):
                 "similarities": job_similarities,
                 "contradictions": job_contradictions,
                 "markdown_report": report_md,
+                "claims": [c.model_dump() if hasattr(c, "model_dump") else c for c in all_claims],
             },
         )
 

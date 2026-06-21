@@ -1,11 +1,10 @@
 import logging
 from typing import List, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
-from langchain_core.output_parsers import StrOutputParser
 
 from app.core.config import settings
 
@@ -16,6 +15,10 @@ class ChatResponse(BaseModel):
     answer: str
     sources: List[Dict[str, Any]]
 
+class ChatLLMResponse(BaseModel):
+    answer: str = Field(description="The answer to the user's question, based on the context.")
+    sources_used: List[str] = Field(description="A list of the EXACT filenames of the sources used to answer the question. Must exactly match the filenames provided in the context. Empty if no sources were used.")
+
 
 # RAG system prompt
 _RAG_PROMPT = ChatPromptTemplate.from_messages([
@@ -23,7 +26,8 @@ _RAG_PROMPT = ChatPromptTemplate.from_messages([
      "You are a helpful research assistant for the OmniMind intelligence platform. "
      "Answer the user's question using ONLY the provided context documents. "
      "If the context does not contain the answer, say so honestly. "
-     "Always be concise and cite the source when possible.\n\n"
+     "Always be concise and cite the source when possible. "
+     "You must also return the EXACT filenames of the sources you actually used to formulate your answer.\n\n"
      "Context:\n{context}"),
     MessagesPlaceholder(variable_name="history"),
     ("human", "{question}"),
@@ -105,20 +109,24 @@ class ChatService:
                 })
             context_text = "\n\n".join(context_parts) if context_parts else "No relevant documents found."
 
-            # Build the LCEL chain — no langchain.chains import needed
-            chain = _RAG_PROMPT | self.llm | StrOutputParser()
+            # Build the LCEL chain
+            llm_with_tools = self.llm.with_structured_output(ChatLLMResponse)
+            chain = _RAG_PROMPT | llm_with_tools
 
-            answer = await chain.ainvoke({
+            result = await chain.ainvoke({
                 "context": context_text,
                 "history": self._build_history(history),
                 "question": message,
             })
 
-            # De-duplicate sources by filename
+            answer = result.answer
+            used_files = set(result.sources_used)
+
+            # De-duplicate sources by filename and filter by used_files
             seen = set()
             unique_sources = []
             for s in sources:
-                if s["filename"] not in seen:
+                if s["filename"] not in seen and s["filename"] in used_files:
                     seen.add(s["filename"])
                     unique_sources.append(s)
 

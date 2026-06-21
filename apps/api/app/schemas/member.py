@@ -36,5 +36,21 @@ class InvitationResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class UserInvitationResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    project_name: str
+    email: str
+    role: RoleType
+    status: str
+    invited_by: UUID | None = None
+    created_at: datetime
+    expires_at: datetime
+    token: str
+    model_config = ConfigDict(from_attributes=True)
+
 class AcceptInviteRequest(BaseModel):
+    token: str
+
+class DeclineInviteRequest(BaseModel):
     token: str

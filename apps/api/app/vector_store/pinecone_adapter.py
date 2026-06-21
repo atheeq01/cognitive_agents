@@ -56,7 +56,7 @@ class PineconeAdapter:
                 await asyncio.to_thread(
                     self._index.upsert,
                     vectors=vectors,
-                    namespace=str(project_id)
+                    namespace=project_id
                 )
                 return
             except Exception as e:
@@ -86,7 +86,7 @@ class PineconeAdapter:
                 response = await asyncio.to_thread(
                     self._index.query,
                     vector=query_vector,
-                    namespace=str(project_id),
+                    namespace=project_id,
                     top_k=top_k,
                     include_metadata=True
                 )
@@ -103,6 +103,7 @@ class PineconeAdapter:
                 if attempt == 4:
                     raise
                 await asyncio.sleep(2 ** attempt + 3)
+        return []
 
     async def fetch_all(self, project_id: str, type: str = "claim") -> list[dict]:
         """
@@ -121,7 +122,7 @@ class PineconeAdapter:
                     try:
                         pagination_token = None
                         while True:
-                            list_args = {"namespace": str(project_id)}
+                            list_args = {"namespace": project_id}
                             if pagination_token:
                                 list_args["pagination_token"] = pagination_token
                             
@@ -134,7 +135,7 @@ class PineconeAdapter:
                                 # Fetch in batches of 100
                                 for i in range(0, len(ids), 100):
                                     batch_ids = ids[i:i+100]
-                                    fetch_resp = await asyncio.to_thread(self._index.fetch, ids=batch_ids, namespace=str(project_id))
+                                    fetch_resp = await asyncio.to_thread(self._index.fetch, ids=batch_ids, namespace=project_id)
                                     for v_id, vdata in fetch_resp.vectors.items():
                                         if vdata.metadata and vdata.metadata.get("type") == type:
                                             all_matches.append({**vdata.metadata, "values": vdata.values})
@@ -165,7 +166,7 @@ class PineconeAdapter:
                     response = await asyncio.to_thread(
                         self._index.query,
                         vector=dummy_vector,
-                        namespace=str(project_id),
+                        namespace=project_id,
                         top_k=10000,
                         include_metadata=True,
                         include_values=True,
@@ -188,5 +189,36 @@ class PineconeAdapter:
         except Exception as e:
             logger.error(f"Unexpected error in fetch_all from Pinecone: {e}")
             return []
+
+    async def delete_document_vectors(self, project_id: str, document_id: str):
+        """
+        Deletes all vectors belonging to a specific document in the project's namespace.
+        """
+        if not self._index:
+            logger.info(f"[MOCK PINECONE] Deleting vectors for document {document_id} in namespace {project_id}")
+            return
+            
+        for attempt in range(5):
+            try:
+                await asyncio.to_thread(
+                    self._index.delete,
+                    filter={"document_id": document_id},
+                    namespace=project_id
+                )
+                logger.info(f"Successfully deleted Pinecone vectors for document {document_id}")
+                return
+            except Exception as e:
+                logger.error(f"Failed to delete vectors from Pinecone (attempt {attempt+1}): {e}")
+                if any(err in str(e) for err in ["Failed to resolve", "NameResolutionError", "errors resolving", "UNAVAILABLE"]):
+                    try:
+                        from pinecone import Pinecone as PineconeREST
+                        self._pc = PineconeREST(api_key=settings.PINECONE_API_KEY)
+                        self._index = self._pc.Index(self.index_name)
+                    except Exception as inner_e:
+                        logger.error(f"Failed to reinitialize Pinecone index: {inner_e}")
+                if attempt == 4:
+                    logger.error("Pinecone delete failed completely after 5 attempts. Gracefully ignoring.")
+                    return
+                await asyncio.sleep(2 ** attempt + 3)
 
 pinecone_adapter = PineconeAdapter()

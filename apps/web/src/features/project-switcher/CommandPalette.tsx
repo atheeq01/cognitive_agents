@@ -55,25 +55,25 @@ export const CommandPalette: React.FC = () => {
 
             <Command.Group heading="Navigation & Actions" className="text-xs font-medium text-muted-foreground px-2 py-1.5 mt-2">
               <Command.Item 
-                onSelect={() => { navigate('/'); setOpen(false); }}
+                onSelect={() => { navigate(activeProject ? `/projects/${activeProject.project_id}` : '/'); setOpen(false); }}
                 className="flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground"
               >
                 Go to Home
               </Command.Item>
               <Command.Item 
-                onSelect={() => { navigate('/admin'); setOpen(false); }}
+                onSelect={() => { navigate(activeProject ? `/projects/${activeProject.project_id}/admin` : '/'); setOpen(false); }}
                 className="flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground mt-1"
               >
                 Go to Dashboard
               </Command.Item>
               <Command.Item 
-                onSelect={() => { navigate('/chat'); setOpen(false); }}
+                onSelect={() => { navigate(activeProject ? `/projects/${activeProject.project_id}/chat` : '/'); setOpen(false); }}
                 className="flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground mt-1"
               >
                 Go to Knowledge Chat
               </Command.Item>
               <Command.Item 
-                onSelect={() => { navigate('/members'); setOpen(false); }}
+                onSelect={() => { navigate(activeProject ? `/projects/${activeProject.project_id}/members` : '/'); setOpen(false); }}
                 className="flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground mt-1"
               >
                 Go to Member Management

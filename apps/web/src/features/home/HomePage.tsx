@@ -3,7 +3,7 @@ import { useAuth } from '../../app/providers/AuthProvider';
 import { useProject } from '../../app/providers/ProjectProvider';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MessageSquare, FileText, Users, Command, ArrowRight } from 'lucide-react';
+import { MessageSquare, FileText, Users, Command, Sparkles } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
   const { user } = useAuth();
@@ -23,73 +23,77 @@ export const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-12 px-4 h-full flex flex-col justify-center min-h-[80vh]">
+    <div className="max-w-6xl mx-auto py-12 px-6 h-full flex flex-col">
       <motion.div 
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="space-y-12"
+        className="space-y-16"
       >
-        <motion.div variants={itemVariants} className="text-center max-w-3xl mx-auto space-y-4">
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-foreground">
-            Welcome back{user?.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}.
+        <motion.div variants={itemVariants} className="flex flex-col items-center text-center space-y-4 pt-8">
+          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground shadow-lg mb-4">
+            <Sparkles className="w-8 h-8" />
+          </div>
+          <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground">
+            Welcome back{user?.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}
           </h1>
-          <p className="text-xl text-muted-foreground">
+          <p className="text-lg text-muted-foreground">
             {activeProject ? (
-              <>You are currently working in <span className="font-medium text-foreground">{activeProject.name}</span>.</>
+              <>You are currently working in <span className="font-semibold text-foreground">{activeProject.name}</span></>
             ) : (
-              <>Select a project from the top right to get started.</>
+              <>Select a project to get started</>
             )}
           </p>
-          
-          <div className="pt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground bg-muted/50 w-fit mx-auto px-4 py-2 rounded-full border">
-            <Command className="w-4 h-4" />
-            <span>Press <kbd className="font-mono bg-background px-1.5 py-0.5 rounded border shadow-sm mx-1">Cmd</kbd> + <kbd className="font-mono bg-background px-1.5 py-0.5 rounded border shadow-sm mx-1">K</kbd> anywhere to quickly navigate</span>
-          </div>
         </motion.div>
 
         {activeProject && (
-          <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
-            <Link to="/chat" className="group flex flex-col h-full bg-card hover:bg-accent/50 border rounded-2xl p-6 transition-all duration-300 shadow-sm hover:shadow-md">
-              <div className="w-12 h-12 bg-blue-500/10 text-blue-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <MessageSquare className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center justify-between">
-                Knowledge Chat
-                <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
-              </h3>
-              <p className="text-sm text-muted-foreground flex-1">
-                Interact with the AI agent to ask questions and extract insights from your project's documents.
-              </p>
-            </Link>
+          <motion.div variants={itemVariants} className="flex justify-center">
+            <div className="flex flex-wrap justify-center gap-4 max-w-4xl">
+              <Link to={`/projects/${activeProject.project_id}/chat`} className="group flex flex-col w-[280px] bg-card hover:bg-accent/30 border border-border/60 rounded-2xl p-5 transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer">
+                <div className="w-10 h-10 bg-[#e6f0ff] text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground mb-1">
+                  Knowledge Chat
+                </h3>
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  Interact with the AI agent and extract insights.
+                </p>
+              </Link>
 
-            <Link to="/admin" className="group flex flex-col h-full bg-card hover:bg-accent/50 border rounded-2xl p-6 transition-all duration-300 shadow-sm hover:shadow-md">
-              <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <FileText className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center justify-between">
-                Document Hub
-                <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
-              </h3>
-              <p className="text-sm text-muted-foreground flex-1">
-                Upload new knowledge bases, review pending documents, and manage your library.
-              </p>
-            </Link>
+              <Link to={`/projects/${activeProject.project_id}/admin`} className="group flex flex-col w-[280px] bg-card hover:bg-accent/30 border border-border/60 rounded-2xl p-5 transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer">
+                <div className="w-10 h-10 bg-[#e6fff0] text-emerald-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground mb-1">
+                  Documents
+                </h3>
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  Upload and manage your knowledge base.
+                </p>
+              </Link>
 
-            <Link to="/members" className="group flex flex-col h-full bg-card hover:bg-accent/50 border rounded-2xl p-6 transition-all duration-300 shadow-sm hover:shadow-md">
-              <div className="w-12 h-12 bg-purple-500/10 text-purple-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <Users className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center justify-between">
-                Team Access
-                <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
-              </h3>
-              <p className="text-sm text-muted-foreground flex-1">
-                Invite colleagues, manage project roles, and review pending invitations.
-              </p>
-            </Link>
+              <Link to={`/projects/${activeProject.project_id}/members`} className="group flex flex-col w-[280px] bg-card hover:bg-accent/30 border border-border/60 rounded-2xl p-5 transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer">
+                <div className="w-10 h-10 bg-[#f4e6ff] text-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                  <Users className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground mb-1">
+                  Team Access
+                </h3>
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  Invite colleagues and manage roles.
+                </p>
+              </Link>
+            </div>
           </motion.div>
         )}
+
+        <motion.div variants={itemVariants} className="pt-12 pb-4 flex justify-center">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-accent/50 px-4 py-2 rounded-full border border-border/50">
+            <Command className="w-3.5 h-3.5" />
+            <span>Press <kbd className="font-mono bg-background px-1.5 py-0.5 rounded border shadow-sm mx-1">Cmd</kbd> + <kbd className="font-mono bg-background px-1.5 py-0.5 rounded border shadow-sm mx-1">K</kbd> anywhere to quickly navigate</span>
+          </div>
+        </motion.div>
       </motion.div>
     </div>
   );

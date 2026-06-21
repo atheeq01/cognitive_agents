@@ -1,11 +1,12 @@
 from uuid import UUID
 import secrets
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from fastapi import HTTPException
 
 from app.models.project_member import ProjectMember
 from app.models.user import User
+from app.models.project import Project
 from app.models.project_invitation import ProjectInvitation
 from app.schemas.member import MemberInvite
 from app.services.pubsub_service import pubsub_service
@@ -39,7 +40,31 @@ class MemberService:
             select(ProjectInvitation)
             .where(ProjectInvitation.project_id == project_id, ProjectInvitation.status == "pending")
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def list_user_invitations(db: AsyncSession, email: str) -> list[dict]:
+        stmt = (
+            select(ProjectInvitation, Project.name)
+            .join(Project, ProjectInvitation.project_id == Project.project_id)
+            .where(ProjectInvitation.email == email, ProjectInvitation.status == "pending")
+        )
+        result = await db.execute(stmt)
+        invitations = []
+        for inv, project_name in result.all():
+            invitations.append({
+                "id": inv.id,
+                "project_id": inv.project_id,
+                "project_name": project_name,
+                "email": inv.email,
+                "role": inv.role,
+                "status": inv.status,
+                "invited_by": inv.invited_by,
+                "created_at": inv.created_at,
+                "expires_at": inv.expires_at,
+                "token": inv.token
+            })
+        return invitations
 
     @staticmethod
     async def add_member(db: AsyncSession, project_id: UUID, invite: MemberInvite, invited_by: UUID) -> ProjectInvitation:
@@ -105,7 +130,7 @@ class MemberService:
             ProjectMember.user_id == current_user.user_id
         ))
         if mem_result.scalars().first():
-            invitation.status = "accepted"
+            invitation.status = "accepted"  # type: ignore
             await db.commit()
             raise HTTPException(status_code=400, detail="You are already in this project")
             
@@ -119,7 +144,7 @@ class MemberService:
         db.add(new_member)
         
         # Update invitation
-        invitation.status = "accepted"
+        invitation.status = "accepted"  # type: ignore
         
         await db.commit()
         await db.refresh(new_member)
@@ -128,6 +153,23 @@ class MemberService:
         await pubsub_service.publish_member_accepted(str(invitation.project_id), str(current_user.user_id))
         
         return new_member
+
+    @staticmethod
+    async def decline_invitation(db: AsyncSession, token: str, current_user: User) -> None:
+        result = await db.execute(select(ProjectInvitation).where(ProjectInvitation.token == token))
+        invitation = result.scalars().first()
+        
+        if not invitation:
+            raise HTTPException(status_code=404, detail="Invitation not found or invalid")
+            
+        if invitation.status != "pending":
+            raise HTTPException(status_code=400, detail="Invitation already processed")
+            
+        if current_user.email != invitation.email:
+            raise HTTPException(status_code=400, detail="This invitation was sent to a different email address")
+            
+        invitation.status = "declined"  # type: ignore
+        await db.commit()
 
     @staticmethod
     async def update_role(db: AsyncSession, project_id: UUID, user_id: UUID, new_role: str) -> ProjectMember:
@@ -139,7 +181,16 @@ class MemberService:
         if not member:
             raise HTTPException(status_code=404, detail="Member not found")
             
-        member.role = new_role
+        if member.role == "admin" and new_role != "admin":
+            admin_count_result = await db.execute(select(func.count(ProjectMember.user_id)).where(
+                ProjectMember.project_id == project_id,
+                ProjectMember.role == "admin"
+            ))
+            admin_count = admin_count_result.scalar() or 0
+            if admin_count <= 1:
+                raise HTTPException(status_code=400, detail="Cannot demote the last admin of the project")
+            
+        member.role = new_role  # type: ignore
         await db.commit()
         await db.refresh(member)
         
@@ -158,5 +209,27 @@ class MemberService:
         if not member:
             raise HTTPException(status_code=404, detail="Member not found")
             
+        if member.role == "admin":
+            admin_count_result = await db.execute(select(func.count(ProjectMember.user_id)).where(
+                ProjectMember.project_id == project_id,
+                ProjectMember.role == "admin"
+            ))
+            admin_count = admin_count_result.scalar() or 0
+            if admin_count <= 1:
+                raise HTTPException(status_code=400, detail="Cannot remove the last admin from the project")
+            
         await db.delete(member)
+        await db.commit()
+
+    @staticmethod
+    async def delete_invitation(db: AsyncSession, project_id: UUID, invitation_id: UUID) -> None:
+        result = await db.execute(select(ProjectInvitation).where(
+            ProjectInvitation.id == invitation_id,
+            ProjectInvitation.project_id == project_id
+        ))
+        invitation = result.scalars().first()
+        if not invitation:
+            raise HTTPException(status_code=404, detail="Invitation not found")
+        
+        await db.delete(invitation)
         await db.commit()

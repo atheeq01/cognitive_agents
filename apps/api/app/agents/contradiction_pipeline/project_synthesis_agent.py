@@ -1,6 +1,6 @@
 import logging
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from app.agents.pipeline import BaseAgent
 
 logger = logging.getLogger(__name__)
@@ -15,34 +15,9 @@ class ProjectSynthesisAgent(BaseAgent):
         super().__init__("ProjectSynthesisAgent")
         self.mock_mode = False
 
-    def _build_candidate_pairs(self, all_claims: List[Dict[str, Any]], score_threshold: float = 0.80) -> List[tuple]:
-        """
-        Since we already have all claims, we can either do an O(N^2) comparison in-memory 
-        if we embedded them, or we can use Pinecone to find similar claims. 
-        Because we're keeping it simple and all_claims might be large, 
-        we will simulate clustering by finding claims from DIFFERENT documents.
-        To avoid massive O(N^2) LLM calls, we can randomly sample or pair them.
-        But ideally, we should query Pinecone for each claim to find its nearest neighbors.
-        """
-        # A true clustering would happen here. For now, we will pair claims across different documents.
-        # To avoid O(N^2), we'll do a naive pairing of claims from doc A with doc B.
-        pairs = []
-        # In a real production system, you'd do an HNSW or agglomerative clustering here.
-        # Since we just want the pipeline to work, we'll do a bounded cross-product.
-        # To make it efficient, we only pair up to 10 claims per document with others.
-        for i, claim_a in enumerate(all_claims):
-            for j, claim_b in enumerate(all_claims[i+1:]):
-                doc_a = claim_a.get("document_id")
-                doc_b = claim_b.get("document_id")
-                if doc_a and doc_b and doc_a != doc_b:
-                    pairs.append((claim_a, claim_b))
-                    if len(pairs) > 20: # Cap to avoid burning API limits in demo
-                        return pairs
-        return pairs
 
-    async def synthesize(self, project_id: str, docs: List[Dict[str, Any]], all_claims: List[Dict[str, Any]]) -> Dict[str, Any]:
-        from datetime import datetime, timezone
-        from app.schemas.report import ProjectReport
+
+    async def synthesize(self, project_id: str, docs: List[Dict[str, Any]], all_claims: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         
         if len(docs) < 1:
             return None
@@ -57,11 +32,8 @@ class ProjectSynthesisAgent(BaseAgent):
                 except Exception:
                     pass
 
-        candidate_pairs = self._build_candidate_pairs(all_claims)
         raw_contradictions = []
         raw_agreements = []
-        
-        logger.info(f"[{self.agent_name}] Evaluating {len(candidate_pairs)} candidate claim pairs.")
         
         for d in docs:
             results = d.get("results", {})
@@ -94,41 +66,14 @@ class ProjectSynthesisAgent(BaseAgent):
                     }
                 })
 
-        from app.agents.contradiction_pipeline.nli_classifier import nli_classifier
-        from app.agents.contradiction_pipeline.verification_pass import verifier_agent
-
-        for claim_a, claim_b in candidate_pairs:
-            fact_a = claim_a.get("fact", "")
-            fact_b = claim_b.get("fact", "")
-            if not fact_a or not fact_b:
-                continue
-            try:
-                nli = await nli_classifier.classify_pair(claim_a, claim_b)
-                if nli.relation == "CONTRADICTION":
-                    verified = await verifier_agent.verify_conflict(nli.evidence_a, nli.evidence_b)
-                    if verified.is_contradiction:
-                        raw_contradictions.append({
-                            "claim_a": claim_a,
-                            "claim_b": claim_b,
-                            "conflict_type": nli.conflict_type,
-                            "reasoning": verified.reasoning
-                        })
-                elif nli.relation == "ENTAILMENT":
-                    raw_agreements.append({
-                        "claim_a": claim_a,
-                        "claim_b": claim_b
-                    })
-            except Exception as e:
-                logger.error(f"[{self.agent_name}] Error comparing claims: {e}")
-                
-        logger.info(f"[{self.agent_name}] Found {len(raw_contradictions)} raw contradictions and {len(raw_agreements)} raw agreements.")
+        logger.info(f"[{self.agent_name}] Found {len(raw_contradictions)} raw contradictions and {len(raw_agreements)} raw agreements from processed documents.")
         
-        report = await self._generate_project_report(project_id, docs, raw_contradictions, raw_agreements)
+        report = await self._generate_project_report(project_id, docs, raw_contradictions, raw_agreements, all_claims)
         return report
 
-    async def _generate_project_report(self, project_id: str, docs: List[Dict[str, Any]], raw_contradictions: list, raw_agreements: list) -> Dict[str, Any]:
+    async def _generate_project_report(self, project_id: str, docs: List[Dict[str, Any]], raw_contradictions: list, raw_agreements: list, all_claims: list) -> Dict[str, Any]:
         from datetime import datetime, timezone
-        from app.schemas.report import ProjectReport, ContradictionFinding, AgreementFinding, CognitiveInsights, SourceLocation
+        from app.schemas.report import ProjectReport, ContradictionFinding, AgreementFinding, CognitiveInsights
         
         if self.mock_mode:
             logger.warning(f"[{self.agent_name}] Running in mock mode, returning dummy report.")
@@ -160,31 +105,47 @@ class ProjectSynthesisAgent(BaseAgent):
             contradictions: List[ContradictionFinding]
             agreements: List[AgreementFinding]
 
+        all_claims_json = json.dumps([{"fact": c.get("fact"), "source_location": c.get("source_location")} for c in all_claims], default=str)
+        raw_contradictions_json = json.dumps(raw_contradictions, default=str)
+        raw_agreements_json = json.dumps(raw_agreements, default=str)
+        doc_summaries_json = json.dumps(doc_summaries, default=str)
+
         prompt = f"""
 You are the Project Synthesis Agent. Your task is to analyze documents in a project and generate a structured intelligence report.
 Number of documents: {len(docs)}
 
-We have run pair-wise claim comparison and found these RAW CONTRADICTIONS and RAW AGREEMENTS.
-Your task is to deduplicate and cluster these: if claims from 3+ documents collide on the same topic, merge them into one ContradictionFinding/AgreementFinding.
-Also, synthesize the document summaries and cognitive insights into one unified, project-wide narrative.
+We have collected ALL EXTRACTED CLAIMS from every document in this project.
+We have also run some automated pair-wise claim comparison to find RAW CONTRADICTIONS and RAW AGREEMENTS, but these may be incomplete.
+Your task is to carefully review ALL EXTRACTED CLAIMS, alongside the raw findings, to identify all significant Contradictions and Agreements across the documents.
+You must synthesize the document summaries and cognitive insights into one unified, project-wide narrative.
 
 IMPORTANT INSTRUCTIONS FOR THE UNIFIED SUMMARY & COGNITIVE SYNTHESIS:
 The user needs to know exactly where the information in the Unified Summary and Cognitive Synthesis comes from. 
 Whenever you mention a fact, insight, or summary detail, you MUST include an inline citation formatted as `[Source: document_name, p.X]`. Do NOT write vague statements. Every significant point must have a citation linking it back to the specific document name and page number.
 
-RAW CONTRADICTIONS:
-{json.dumps(raw_contradictions, default=str)}
+CRITICAL INSTRUCTION FOR AGREEMENTS AND CONTRADICTIONS:
+An "Agreement" or "Contradiction" by definition means comparing across MULTIPLE DIFFERENT documents.
+When you output an `AgreementFinding` or `ContradictionFinding`, you MUST compare each PDF against the other PDFs. Do not just rely on the raw findings. Use the ALL EXTRACTED CLAIMS list to find deep, cross-document connections and conflicts IF AND ONLY IF they exist.
+IMPORTANT: If the documents cover completely unrelated topics, you MUST return empty lists for `contradictions` and `agreements`. DO NOT force or hallucinate conflicts or agreements between unrelated facts.
+For Agreements: You MUST include the exact claims from ALL the different documents that form the agreement. `supporting_claims` MUST be a list of at least 2 items (e.g., Claim from Document A, Claim from Document B). `supporting_sources` MUST be a list of at least 2 items, corresponding exactly to the claims. NEVER output an agreement with only 1 claim and 1 source. This is considered unethical and incorrect.
+For Contradictions: You MUST include the exact claims from the two opposing documents in `claim_a` and `claim_b`.
 
-RAW AGREEMENTS:
-{json.dumps(raw_agreements, default=str)}
+ALL EXTRACTED CLAIMS:
+{all_claims_json}
+
+RAW CONTRADICTIONS (Use as hints):
+{raw_contradictions_json}
+
+RAW AGREEMENTS (Use as hints):
+{raw_agreements_json}
 
 DOCUMENT SUMMARIES:
-{json.dumps(doc_summaries, default=str)}
+{doc_summaries_json}
 
 DOCUMENT COGNITIVE INSIGHTS:
 {json.dumps(doc_insights, default=str)}
 
-IMPORTANT: For the `source_location` fields in ContradictionFinding and AgreementFinding, you MUST copy the exact JSON object provided in the raw data under `claim_a.source_location` or `claim_b.source_location`. Do not invent source locations.
+IMPORTANT: For the `source_location` fields in ContradictionFinding and AgreementFinding, you MUST copy the exact JSON object provided in the raw data or ALL EXTRACTED CLAIMS. Do not invent source locations.
 """
         
         response = await self._execute_with_fallback(

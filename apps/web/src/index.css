@@ -4,16 +4,16 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 210 40% 98%; /* Light gray body background */
     --foreground: 222.2 84% 4.9%;
 
-    --card: 0 0% 100%;
+    --card: 0 0% 100%; /* Pure white for cards */
     --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 268 76% 57%; /* Vibrant purple from Voicelab.AI */
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -30,9 +30,9 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 268 76% 57%;
 
-    --radius: 0.5rem;
+    --radius: 1rem; /* Larger border radius for that modern feel */
   }
 
   .dark {
@@ -45,8 +45,8 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 268 76% 57%; /* Keep purple primary in dark mode */
+    --primary-foreground: 210 40% 98%;
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -62,7 +62,7 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --ring: 268 76% 57%;
   }
 }
 

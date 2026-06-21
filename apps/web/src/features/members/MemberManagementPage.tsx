@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useProject } from '../../app/providers/ProjectProvider';
-import { useMembers, useInvitations, useInviteMember, useUpdateRole, useRemoveMember } from './api';
+import { useMembers, useInvitations, useInviteMember, useUpdateRole, useRemoveMember, useDeleteInvitation } from './api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { UserPlus, UserMinus, Shield, Eye, Loader2, Mail, Users } from 'lucide-react';
+import { UserPlus, UserMinus, Shield, Eye, Loader2, Mail, Users, Trash2 } from 'lucide-react';
 
 const MemberManagementPage = () => {
   const { activeProject } = useProject();
@@ -16,6 +16,7 @@ const MemberManagementPage = () => {
   const inviteMutation = useInviteMember(projectId);
   const updateRoleMutation = useUpdateRole(projectId);
   const removeMemberMutation = useRemoveMember(projectId);
+  const deleteInvitationMutation = useDeleteInvitation(projectId);
 
   const [activeTab, setActiveTab] = useState<'members' | 'viewers'>('members');
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -28,6 +29,7 @@ const MemberManagementPage = () => {
 
   const adminsAndMembers = members.filter(m => m.role === 'admin' || m.role === 'member');
   const viewers = members.filter(m => m.role === 'viewer');
+  const adminCount = members.filter(m => m.role === 'admin').length;
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +61,16 @@ const MemberManagementPage = () => {
       toast.success('Member removed');
     } catch (err: any) {
       toast.error('Failed to remove member', { description: err.message });
+    }
+  };
+
+  const handleDeleteInvitation = async (invitationId: string) => {
+    if (!window.confirm('Are you sure you want to cancel this invitation?')) return;
+    try {
+      await deleteInvitationMutation.mutateAsync(invitationId);
+      toast.success('Invitation cancelled');
+    } catch (err: any) {
+      toast.error('Failed to cancel invitation', { description: err.message });
     }
   };
 
@@ -158,7 +170,9 @@ const MemberManagementPage = () => {
                       <select
                         value={member.role}
                         onChange={(e) => handleRoleUpdate(member.user_id, e.target.value)}
-                        className="text-xs border bg-background px-2 py-1.5 rounded-md text-foreground outline-none focus:ring-2 focus:ring-primary/20"
+                        disabled={member.role === 'admin' && adminCount <= 1}
+                        title={member.role === 'admin' && adminCount <= 1 ? "Cannot change role of the last admin" : ""}
+                        className="text-xs border bg-background px-2 py-1.5 rounded-md text-foreground outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <option value="admin">Admin</option>
                         <option value="member">Member</option>
@@ -208,10 +222,17 @@ const MemberManagementPage = () => {
                       </p>
                     </div>
                   </div>
-                  <div>
-                    <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-1 rounded-full font-medium">
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs bg-amber-500/15 text-amber-700 dark:text-amber-400 px-2 py-1 rounded-full font-medium">
                       Pending
                     </span>
+                    <button
+                      onClick={() => handleDeleteInvitation(invite.id)}
+                      className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                      title="Cancel invitation"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </li>
               ))}

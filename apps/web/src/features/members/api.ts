@@ -23,6 +23,11 @@ export interface Invitation {
   expires_at: string;
 }
 
+export interface UserInvitation extends Invitation {
+  project_name: string;
+  token: string;
+}
+
 export const useMembers = (projectId?: string) => {
   return useQuery<Member[]>({
     queryKey: ['members', projectId],
@@ -98,6 +103,45 @@ export const useAcceptInvite = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['my_invitations'] });
+    },
+  });
+};
+
+export const useMyInvitations = () => {
+  return useQuery<UserInvitation[]>({
+    queryKey: ['my_invitations'],
+    queryFn: async () => {
+      return await apiFetch(`/v1/invitations/me`);
+    },
+  });
+};
+
+export const useDeclineInvite = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (token: string) => {
+      return await apiFetch(`/v1/invitations/decline`, {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my_invitations'] });
+    },
+  });
+};
+
+export const useDeleteInvitation = (projectId?: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (invitationId: string) => {
+      return await apiFetch(`/v1/projects/${projectId}/invitations/${invitationId}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invitations', projectId] });
     },
   });
 };

@@ -11,7 +11,18 @@ from app.services.storage_service import storage_service
 from app.services.pubsub_service import pubsub_service
 
 MAX_FILE_SIZE = 50 * 1024 * 1024 # 50 MB
-ALLOWED_MIME_TYPES = ["application/pdf", "text/plain", "audio/mpeg", "image/jpeg", "image/png"]
+ALLOWED_MIME_TYPES = [
+    "application/pdf", 
+    "text/plain", 
+    "audio/mpeg", 
+    "image/jpeg", 
+    "image/png",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/csv",
+    "application/zip" # Fallback for python-magic detecting office docs as zip
+]
 
 class DocumentService:
     @staticmethod
@@ -140,6 +151,14 @@ class DocumentService:
                 logger.info(f"[DocumentService] Deleted GCS file | path={gcs_path}")
         except Exception as e:
             logger.warning(f"[DocumentService] Failed to delete GCS file (non-fatal): {e}")
+
+        # 4. Delete the vectors from Pinecone
+        try:
+            from app.vector_store.pinecone_adapter import pinecone_adapter
+            await pinecone_adapter.delete_document_vectors(str(project_id), str(document_id))
+            logger.info(f"[DocumentService] Deleted Pinecone vectors | project={project_id} | document={document_id}")
+        except Exception as e:
+            logger.warning(f"[DocumentService] Failed to delete Pinecone vectors (non-fatal): {e}")
 
         # 4. Trigger Project Report Refresh to remove the document from the intelligence report
         try:

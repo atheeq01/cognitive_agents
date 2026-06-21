@@ -66,12 +66,24 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
 
   const handleFileSelect = (file: File) => {
     // Validate file type
-    const allowedTypes = ['application/pdf', 'text/plain', 'audio/mpeg', 'image/jpeg', 'image/png', 'audio/mp3'];
-    const allowedExtensions = ['pdf', 'txt', 'mp3', 'jpg', 'jpeg', 'png'];
+    const allowedTypes = [
+      'application/pdf', 
+      'text/plain', 
+      'audio/mpeg', 
+      'image/jpeg', 
+      'image/png', 
+      'audio/mp3',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv',
+      'application/zip' // Sometimes magic libraries detect office docs as zip
+    ];
+    const allowedExtensions = ['pdf', 'txt', 'mp3', 'jpg', 'jpeg', 'png', 'docx', 'pptx', 'xlsx', 'csv'];
     const extension = file.name.split('.').pop()?.toLowerCase() || '';
     
     if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(extension)) {
-      toast.error('Unsupported file type. Please upload a PDF, TXT, MP3, JPG, or PNG.');
+      toast.error('Unsupported file type. Please upload a PDF, TXT, MP3, JPG, PNG, DOCX, PPTX, XLSX, or CSV.');
       return;
     }
     
@@ -110,7 +122,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
           className="hidden" 
           ref={fileInputRef} 
           onChange={handleFileInputChange}
-          accept=".pdf,.txt,.mp3,.jpg,.jpeg,.png"
+          accept=".pdf,.txt,.mp3,.jpg,.jpeg,.png,.docx,.pptx,.xlsx,.csv"
         />
 
         <AnimatePresence mode="wait">
@@ -127,7 +139,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
               </div>
               <div>
                 <p className="text-lg font-semibold text-foreground">Click or drag a file to upload</p>
-                <p className="text-sm text-muted-foreground mt-1">PDF, TXT, Images, or Audio up to 50MB</p>
+                <p className="text-sm text-muted-foreground mt-1">PDF, TXT, Documents, Images, or Audio up to 50MB</p>
               </div>
             </motion.div>
           ) : uploadMutation.isPending ? (
